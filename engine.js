@@ -547,14 +547,22 @@ peer.on('connection', (conn) => {
 
     const acceptBtn = document.getElementById('accept-btn');
     if (acceptBtn) {
-        acceptBtn.onclick = () => {
-            modal.style.display = 'none';
-            // Wir sagen Gerät A sofort, dass wir da sind
+       acceptBtn.onclick = () => {
+            // 1. Das Einladungs-Fenster sofort schließen
+            modal.style.display = 'none'; 
+            
+            // 2. DAS INTERFACE AUF GERÄT B SOFORT UMSCHALTEN
+            // Das sorgt dafür, dass dein Code-Eingabefeld verschwindet!
+            document.getElementById('connect-ui').style.display = 'none';
+            document.getElementById('transfer-ui').style.display = 'block';
+            document.getElementById('status').textContent = "📥 READY TO RECEIVE";
+
+            // 3. Dem Sender (Gerät A) sagen: "Wir sind startklar!"
             conn.on('open', () => {
                 conn.send({ type: 'handshake-ack' });
-                document.getElementById('connect-ui').style.display = 'none';
-                document.getElementById('transfer-ui').style.display = 'block';
             });
+
+            window.activeConn = conn;
         };
     }
 });
