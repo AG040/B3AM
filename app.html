@@ -103,4 +103,25 @@
             document.getElementById('status').textContent = "⚡ TRY AGAIN...";
         }, 3000);
     };
+    }, 3000);
+    }; // Das ist das Ende vom Button-Klick
+
+    // --- HIER EINSETZEN ---
+    const dropZone = document.getElementById('drop-zone');
+    const fileInput = document.getElementById('file-input');
+
+    if (dropZone && fileInput) {
+        dropZone.onclick = () => fileInput.click();
+        fileInput.onchange = async (e) => {
+            const files = e.target.files;
+            if (files.length > 0 && window.B3AM_ENGINE) {
+                for (let file of files) {
+                    await window.B3AM_ENGINE.initiateUltraTransfer(file);
+                }
+            }
+        };
+    }
+    // --- ENDE DES NEUEN CODES ---
+
+}); // DAS IST DEINE ALTE ZEILE 105 (Der Deckel)
 </script>
