@@ -535,34 +535,33 @@ const MRLN_BRIDGE = {
 
 // 4. DER EMPFÄNGER-LAUSCHER (Hier reagiert Gerät B)
 // WICHTIG: Das muss außerhalb des MRLN_BRIDGE Objekts stehen!
-peer.on('connection', (conn) => {
-    console.log("🔔 Signal empfangen!");
+// --- NEUER EMPFÄNGER-LAUSCHER (Zeile 538) ---
+window.peer.on('connection', (conn) => {
+    console.log("🔔 MRLN: Eingehendes Signal!");
     const modal = document.getElementById('request-modal');
     const reqIdDisplay = document.getElementById('req-id');
 
     if (modal) {
         if (reqIdDisplay) reqIdDisplay.textContent = conn.peer;
-        modal.style.display = 'flex';
+        modal.style.display = 'flex'; // Sicherheitseinladung zeigen
     }
 
     const acceptBtn = document.getElementById('accept-btn');
     if (acceptBtn) {
-       acceptBtn.onclick = () => {
-            // 1. Das Einladungs-Fenster sofort schließen
-            modal.style.display = 'none'; 
+        acceptBtn.onclick = () => {
+            modal.style.display = 'none'; // Fenster zu
             
-            // 2. DAS INTERFACE AUF GERÄT B SOFORT UMSCHALTEN
-            // Das sorgt dafür, dass dein Code-Eingabefeld verschwindet!
+            // UI auf Gerät B umschalten
             document.getElementById('connect-ui').style.display = 'none';
             document.getElementById('transfer-ui').style.display = 'block';
             document.getElementById('status').textContent = "📥 READY TO RECEIVE";
-
-            // 3. Dem Sender (Gerät A) sagen: "Wir sind startklar!"
+            
+            // Verbindung bestätigen
             conn.on('open', () => {
                 conn.send({ type: 'handshake-ack' });
             });
-
-            window.activeConn = conn;
+            
+            window.activeConn = conn; // Wichtig für den Dateitransfer!
         };
     }
 });
