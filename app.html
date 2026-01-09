@@ -64,64 +64,57 @@
         </div>
     </div>
 
- <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+<script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+
 <script>
-    // 1. ID Generierung (Deine 6 Zahlen)
+    // 2. ID SOFORT ERZEUGEN (Damit die blauen Zahlen sofort erscheinen)
     const myID = Math.floor(100000 + Math.random() * 900000).toString();
-    document.getElementById('my-id').textContent = myID;
+    const idElement = document.getElementById('my-id');
+    if (idElement) idElement.textContent = myID;
 
-    // 2. Engine Start
-    const peer = new Peer(myID);
-    window.peer = peer; // Damit die engine.js darauf zugreifen kann
+    document.addEventListener('DOMContentLoaded', () => {
+        // 3. ENGINE STARTEN
+        const peer = new Peer(myID);
+        window.peer = peer;
 
-    peer.on('open', () => {
-        console.log("✅ Dein Code ist aktiv: " + myID);
-        document.getElementById('status').textContent = "⚡ ENGINE READY";
-    });
+        peer.on('open', () => {
+            const statusLabel = document.getElementById('status');
+            if (statusLabel) statusLabel.textContent = "⚡ ENGINE READY";
+        });
 
-    // 3. DER KNOPF-FIX (ESTABLISH LINK)
-    document.getElementById('btn-connect').onclick = function() {
-        const targetID = document.getElementById('remote-id-input').value;
-        
-        if (targetID.length !== 6) {
-            alert("Bitte genau 6 Zahlen eingeben!");
-            return;
+        // 4. VERBINDUNGS-KNOPF FIX
+        const btnConnect = document.getElementById('btn-connect');
+        if (btnConnect) {
+            btnConnect.onclick = function() {
+                const targetID = document.getElementById('remote-id-input').value;
+                if (targetID.length !== 6) return alert("Bitte 6 Zahlen eingeben!");
+
+                const conn = peer.connect(targetID);
+                conn.on('open', () => {
+                    document.getElementById('connect-ui').style.display = 'none';
+                    document.getElementById('transfer-ui').style.display = 'block';
+                    window.activeConn = conn;
+                });
+            };
         }
 
-        console.log("🚀 Verbinde zu: " + targetID);
-        const conn = peer.connect(targetID);
-
-        conn.on('open', () => {
-            // UI Umschalten
-            document.getElementById('connect-ui').style.display = 'none';
-            document.getElementById('transfer-ui').style.display = 'block';
-            window.activeConn = conn;
-        });
-        
-        // Falls es nicht klappt, Button wieder freigeben
-        setTimeout(() => {
-            document.getElementById('status').textContent = "⚡ TRY AGAIN...";
-        }, 3000);
-    };
-    }, 3000);
-    }; // Das ist das Ende vom Button-Klick
-
-    // --- HIER EINSETZEN ---
-    const dropZone = document.getElementById('drop-zone');
-    const fileInput = document.getElementById('file-input');
-
-    if (dropZone && fileInput) {
-        dropZone.onclick = () => fileInput.click();
-        fileInput.onchange = async (e) => {
-            const files = e.target.files;
-            if (files.length > 0 && window.B3AM_ENGINE) {
-                for (let file of files) {
-                    await window.B3AM_ENGINE.initiateUltraTransfer(file);
+        // 5. DATEI-AUSWAHL FIX
+        const dropZone = document.getElementById('drop-zone');
+        const fileInput = document.getElementById('file-input');
+        if (dropZone && fileInput) {
+            dropZone.onclick = () => fileInput.click();
+            fileInput.onchange = async (e) => {
+                const files = e.target.files;
+                if (files.length > 0 && window.B3AM_ENGINE) {
+                    for (let file of files) {
+                        await window.B3AM_ENGINE.initiateUltraTransfer(file);
+                    }
                 }
-            }
-        };
-    }
-    // --- ENDE DES NEUEN CODES ---
-
-}); // DAS IST DEINE ALTE ZEILE 105 (Der Deckel)
+            };
+        }
+    });
 </script>
+
+<script src="engine.js"></script>
+</body>
+</html>
