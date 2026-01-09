@@ -474,12 +474,21 @@ console.log("🛡️ MRLN Recovery-System v5.0 initialized.");
 const MRLN_BRIDGE = {
     // 1. DER HAUPTSCHALTER (Sender-Seite)
     async initiateUltraTransfer(file) {
-        console.log(`🚀 MAB: Signal received. Starting Ultra-Transfer for: ${file.name}`);
-        await MRLN_HAL.initScanner();
-        if (!MRLN_SHIELD.isSecurityReady()) await MRLN_SHIELD.generateSessionKey();
-        await MRLN_FILESYSTEM.prepareStorage(file.name, file.size);
-        MRLN_MULTIPATH.discoverPaths();
-        this.startStreaming(file);
+        console.log(`🚀 MAB: Signal empfangen. Starte Transfer für: ${file.name}`);
+        
+        // PRÜFUNG: Ist die Leitung offen?
+        if (window.activeConn && window.activeConn.open) {
+            await MRLN_HAL.initScanner();
+            if (!MRLN_SHIELD.isSecurityReady()) await MRLN_SHIELD.generateSessionKey();
+            await MRLN_FILESYSTEM.prepareStorage(file.name, file.size);
+            MRLN_MULTIPATH.discoverPaths();
+            
+            // ÜBERGABE AN DEN REAKTOR (Zeile 486)
+            this.startStreaming(file, window.activeConn); 
+        } else {
+            alert("FEHLER: Keine aktive Verbindung zu Gerät B!");
+            location.reload(); // Not-Reset für die Investoren
+        }
     },
 
     // 2. DER DATEN-REAKTOR
