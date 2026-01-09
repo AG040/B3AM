@@ -3,116 +3,176 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>B3AM v1.8.1 • MRLN LABS</title>
+    <title>B3AM ENGINE • MRLN LABS</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.2/peerjs.min.js"></script>
     <style>
-        :root { --bg: #050507; --glass: rgba(255, 255, 255, 0.03); --border: rgba(255, 255, 255, 0.08); --primary: #00f3ff; --text-main: #ffffff; --text-muted: #8892b0; --success: #00ff9d; --error: #ff2a6d; }
-        body { font-family: 'Inter', sans-serif; background-color: var(--bg); background-image: linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px); background-size: 50px 50px; color: var(--text-main); display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; overflow-x: hidden; }
-        .header-nav { position: fixed; top: 0; left: 0; width: 100%; height: 70px; display: flex; align-items: center; padding: 0 30px; background: rgba(5, 5, 7, 0.85); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); z-index: 1000; }
-        .logo-link { text-decoration: none; display: flex; align-items: center; }
-        .logo-text { color: var(--primary); font-weight: 900; letter-spacing: 3px; font-size: 1.3rem; text-transform: uppercase; text-shadow: 0 0 15px rgba(0, 243, 255, 0.6); }
-        .card { background: var(--glass); backdrop-filter: blur(15px); width: 90%; max-width: 440px; padding: 40px; border-radius: 24px; border: 1px solid var(--border); text-align: center; position: relative; box-shadow: 0 0 60px rgba(0, 243, 255, 0.1); margin-top: 80px; }
-        .tag { color: var(--primary); border: 1px solid var(--primary); padding: 4px 12px; border-radius: 20px; font-size: 0.7rem; font-weight: bold; display: inline-block; margin-bottom: 30px; text-transform: uppercase; letter-spacing: 2px; }
-        .id-digit { font-size: 3.5rem; font-weight: 700; color: var(--primary); letter-spacing: 5px; text-shadow: 0 0 30px rgba(0, 243, 255, 0.5); font-family: monospace; margin: 20px 0; }
-        .main-btn { background: var(--primary); color: #050507; font-weight: 800; border: none; padding: 16px 30px; border-radius: 30px; cursor: pointer; width: 100%; margin-top: 15px; text-transform: uppercase; letter-spacing: 1px; transition: 0.3s; }
-        .main-btn:hover { transform: scale(1.02); box-shadow: 0 0 25px var(--primary); }
-        .save-btn { background: var(--success); color: black; display: none; margin-top: 20px; animation: pulse 2s infinite; }
-        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(0, 255, 157, 0.7); } 70% { box-shadow: 0 0 0 15px rgba(0, 255, 157, 0); } 100% { box-shadow: 0 0 0 0 rgba(0, 255, 157, 0); } }
-        input.target-id { background: rgba(255,255,255,0.05); color: white; font-size: 1.5rem; padding: 15px; width: 80%; text-align: center; border: 1px solid var(--border); border-radius: 12px; margin-bottom: 15px; outline: none; letter-spacing: 2px; }
-        .progress-container { background:#111; border-radius:10px; margin-top:20px; overflow:hidden; height: 8px; width: 100%; border: 1px solid var(--border); }
-        .progress-bar { height: 100%; background: var(--success); width: 0%; transition: width 0.1s linear; }
-        .info-text { font-family: monospace; color: var(--success); margin-top: 15px; font-size: 1rem; font-weight: bold; }
-        .status-text { margin-top: 20px; font-size: 0.8rem; color: var(--text-muted); }
-        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); backdrop-filter: blur(5px); z-index: 2000; display: none; justify-content: center; align-items: center; }
-        .modal-box { background: #0f0f13; border: 1px solid var(--primary); padding: 30px; border-radius: 20px; text-align: center; }
+        /* --- DEIN ORIGINAL DESIGN LOCK --- */
+        :root { --bg: #050507; --primary: #00f3ff; --text-muted: #8892b0; --error: #ff2a6d; --success: #00ff9d; }
+        body { margin: 0; padding: 0; background-color: var(--bg); color: white; font-family: 'Inter', sans-serif;
+            background-image: linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+            background-size: 50px 50px; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+        .card { background: rgba(255,255,255,0.03); backdrop-filter: blur(15px); width: 90%; max-width: 440px; padding: 40px; border-radius: 24px; border: 1px solid rgba(255,255,255,0.08); text-align: center; }
+        .id-digit { font-size: 3.5rem; font-weight: 700; color: var(--primary); letter-spacing: 5px; margin: 20px 0; }
+        .main-btn { background: var(--primary); color: #000; font-weight: 800; border: none; padding: 16px; border-radius: 30px; cursor: pointer; width: 100%; text-transform: uppercase; margin-top: 10px; }
+        .progress-container { background: #111; border-radius: 10px; margin-top: 20px; overflow: hidden; border: 1px solid rgba(255,255,255,0.1); }
+        .progress-bar { height: 8px; background: var(--success); width: 0%; transition: width 0.1s linear; }
+        .info-text { font-family: monospace; color: var(--success); margin-top: 10px; font-size: 0.8rem; }
+        .save-btn { background: var(--success); display: none; margin-top: 15px; }
+        input { background: rgba(255,255,255,0.05); color: white; border: 1px solid rgba(255,255,255,0.1); padding: 15px; width: 80%; text-align: center; border-radius: 12px; margin-bottom: 10px; font-size: 1.2rem; }
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); display: none; justify-content: center; align-items: center; z-index: 1000; }
     </style>
 </head>
 <body>
-    <header class="header-nav">
-        <a href="index.html" class="logo-link"><span class="logo-text">MRLN LABS</span></a>
-    </header>
 
     <div class="modal-overlay" id="request-modal">
-        <div class="modal-box">
-            <h2 style="color:white; margin-top:0;">INCOMING</h2>
-            <p style="color:#aaa;">ID: <span id="req-id" style="color:var(--primary);">...</span></p>
-            <div style="display:flex; gap:10px; margin-top:20px;">
-                <button onclick="answer(false)" style="background:transparent; border:1px solid var(--error); color:var(--error); flex:1; padding:12px; border-radius:10px;">BLOCK</button>
-                <button onclick="answer(true)" style="background:var(--success); color:black; flex:1; padding:12px; border:none; border-radius:10px; font-weight:bold;">ACCEPT</button>
-            </div>
+        <div style="background: #0f0f13; padding: 30px; border-radius: 20px; text-align: center; border: 1px solid var(--primary);">
+            <h2 style="margin-top:0">INCOMING</h2>
+            <p>ID: <span id="req-id" style="color:var(--primary)">...</span></p>
+            <button onclick="answer(true)" class="main-btn" style="background:var(--success)">ACCEPT</button>
+            <button onclick="answer(false)" class="main-btn" style="background:transparent; color:var(--error); border:1px solid var(--error)">BLOCK</button>
         </div>
     </div>
 
     <div class="card">
         <h1>B3AM ENGINE</h1>
-        <div class="tag">v1.8.1 • ERROR FIXED</div>
+        <div style="color:var(--primary); font-size:0.7rem; letter-spacing:2px;">v1.8.1 • ERROR FIXED</div>
         <div class="id-digit" id="my-id">...</div>
+        
         <div id="connect-ui">
-            <input type="number" class="target-id" id="remote-id-input" placeholder="000000">
-            <button id="btn-connect" class="main-btn">REQUEST CONNECTION</button>
+            <input type="number" id="remote-id-input" placeholder="000000">
+            <button id="btn-connect" class="main-btn">CONNECT</button>
         </div>
+
         <div id="transfer-ui" style="display:none;">
-            <div id="drop-zone" class="drop-zone" style="border: 2px dashed #444; padding: 40px; border-radius: 16px; margin-top: 20px; cursor: pointer; color:#888;">DRAG & DROP FILES</div>
-            <input type="file" id="file-input" hidden>
-            <div class="progress-container"><div class="progress-bar" id="prog-bar"></div></div>
-            <div class="info-text" id="speed-display">0.0 MB/s</div>
-            <button id="btn-save" class="main-btn save-btn">DOWNLOAD READY - CLICK TO SAVE</button>
-            <button class="main-btn" style="background:transparent; border:1px solid var(--error); color:var(--error); margin-top:20px; font-size:0.8rem;" onclick="location.reload()">DISCONNECT</button>
+            <div id="drop-zone" style="border: 2px dashed #444; padding: 30px; border-radius: 15px; cursor: pointer; color:#666;">DRAG & DROP FILES</div>
+            <input type="file" id="file-input" hidden multiple>
+            <div id="status" style="margin-top:15px; font-size:0.8rem; color:var(--text-muted);">⚡ Connected</div>
         </div>
-        <div id="status" class="status-text">System Ready</div>
     </div>
 
     <script>
-// --- DIESER TEIL STEUERT DEN EMPFANG UND DEN BALKEN ---
-function handleData(data){
-    if(data.type === 'handshake-ack'){
-        ui.connectArea.style.display = 'none';
-        ui.transferArea.style.display = 'block';
-        ui.status.textContent = "⚡ Connected";
-    } 
-    else if(data.type === 'header'){
-        // Wenn der Empfänger die Datei noch nicht kennt, baut er sich die Box selbst
-        if(!rxFiles[data.name]) {
-            createRxUI(data.name); 
-        }
+        const myID = Math.floor(100000 + Math.random() * 900000); 
+        document.getElementById('my-id').textContent = myID;
+        const ui = { input: document.getElementById('remote-id-input'), btnConnect: document.getElementById('btn-connect'), dropZone: document.getElementById('drop-zone'), fileInput: document.getElementById('file-input'), status: document.getElementById('status'), transferArea: document.getElementById('transfer-ui'), connectArea: document.getElementById('connect-ui'), modal: document.getElementById('request-modal'), reqId: document.getElementById('req-id') };
         
-        const f = rxFiles[data.name];
-        f.chunks = [];
-        f.bytes = 0;
-        f.total = data.size;
-        f.startTime = Date.now(); // Startschuss für die Zeitmessung
-        f.bar.style.width = '0%';
-        f.btn.style.display = 'none';
-        ui.status.textContent = "Incoming: " + data.name;
-    } 
-    else if(data.type === 'chunk'){
-        const f = rxFiles[data.name];
-        if(f){
-            f.chunks.push(data.data);
-            f.bytes += data.data.byteLength;
+        let peer, conn, reqConn, sending = false;
+        let fileQueue = []; 
+        let rxFiles = {}; 
+
+        peer = new Peer(`b3am-${myID}`, { debug: 1 });
+        peer.on('open', () => ui.status.textContent = "✅ Engine Online");
+        peer.on('error', (err) => {
+            ui.btnConnect.disabled = false;
+            ui.status.innerHTML = err.type === 'peer-unavailable' ? `<span style="color:var(--error)">⚠️ ID NOT FOUND</span>` : "⚠️ Error: " + err.type;
+        });
+
+        peer.on('connection', (c) => {
+            c.on('open', () => { reqConn = c; ui.reqId.textContent = c.peer.replace('b3am-',''); ui.modal.style.display='flex'; });
+        });
+
+        ui.btnConnect.addEventListener('click', () => {
+            const target = ui.input.value;
+            if(target.length!==6) return alert("6 Digits required");
+            ui.btnConnect.disabled=true;
+            conn = peer.connect(`b3am-${target}`);
+            setupConn();
+        });
+
+        function answer(yes){
+            ui.modal.style.display='none';
+            if(yes){ conn=reqConn; conn.send({type:'handshake-ack'}); ui.connectArea.style.display='none'; ui.transferArea.style.display='block'; setupConn(); } 
+            else reqConn.close();
+        }
+
+        function setupConn(){
+            conn.on('data', data => handleData(data));
+            conn.on('close', () => location.reload());
+        }
+
+        ui.dropZone.onclick = () => ui.fileInput.click();
+        ui.fileInput.onchange = e => {
+            for(const file of e.target.files){ fileQueue.push(file); createRxUI(file.name); }
+            if(fileQueue.length > 0) startQueue();
+        };
+
+        function createRxUI(fileName){
+            const container = document.createElement('div');
+            container.className = 'progress-container';
+            const bar = document.createElement('div');
+            bar.className = 'progress-bar';
+            const label = document.createElement('div');
+            label.className = 'info-text';
+            label.textContent = fileName + ' - 0%';
+            const btn = document.createElement('button');
+            btn.className = 'main-btn save-btn';
+            btn.textContent = 'DOWNLOAD READY';
             
-            // Berechnung für den Balken (Balken = (Was wir haben / Was wir brauchen) * 100)
-            const ms = Date.now() - f.startTime;
-            const speed = (f.bytes / 1024 / 1024) / (ms / 1000);
-            const percent = ((f.bytes / f.total) * 100).toFixed(1);
+            container.appendChild(bar);
+            ui.transferArea.appendChild(container);
+            ui.transferArea.appendChild(label);
+            ui.transferArea.appendChild(btn);
             
-            // Hier passiert die Magie: Der Balken bewegt sich!
+            rxFiles[fileName] = {chunks:[], bytes:0, total:0, bar, label, btn, startTime:0};
+            btn.onclick = () => {
+                const blob = new Blob(rxFiles[fileName].chunks);
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = fileName;
+                a.click();
+            };
+        }
+
+        async function startQueue(){
+            if(sending || !conn) return;
+            sending = true;
+            while(fileQueue.length > 0){ await sendFile(fileQueue.shift()); }
+            sending = false;
+        }
+
+        async function sendFile(file){
+            conn.send({type:'header', name:file.name, size:file.size});
+            const reader = file.stream().getReader();
+            let sent = 0; const start = Date.now();
+            while(true){
+                const {done, value} = await reader.read();
+                if(done) break;
+                conn.send({type:'chunk', data:value, name:file.name});
+                sent += value.byteLength;
+                updateProgress(file.name, sent, file.size, Date.now()-start);
+                while(conn.dataChannel.bufferedAmount > 1024*1024*16) await new Promise(r=>setTimeout(r,1));
+            }
+            conn.send({type:'end', name:file.name});
+        }
+
+        function updateProgress(name, sent, total, ms){
+            const f = rxFiles[name]; if(!f) return;
+            const percent = ((sent/total)*100).toFixed(1);
             f.bar.style.width = percent + '%';
-            f.label.textContent = `${data.name} - ${speed.toFixed(1)} MB/s (${percent}%)`;
+            f.label.textContent = `${name} - ${percent}%`;
         }
-    } 
-    else if(data.type === 'end'){
-        const f = rxFiles[data.name];
-        if(f){
-            const blob = new Blob(f.chunks);
-            f.downloadUrl = URL.createObjectURL(blob);
-            f.btn.style.display = 'block'; 
-            f.bar.style.width = '100%'; // Balken auf Vollschlag
-            ui.status.textContent = `✅ ${data.name} Ready for Download`;
-            if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+
+        // --- DEINE REPARIERTE LOGIK ---
+        function handleData(data){
+            if(data.type==='handshake-ack'){ ui.connectArea.style.display='none'; ui.transferArea.style.display='block'; }
+            else if(data.type==='header'){
+                if(!rxFiles[data.name]) createRxUI(data.name);
+                const f = rxFiles[data.name];
+                f.chunks=[]; f.bytes=0; f.total=data.size; f.startTime=Date.now();
+            }
+            else if(data.type==='chunk'){
+                const f = rxFiles[data.name];
+                if(f){
+                    f.chunks.push(data.data); f.bytes += data.data.byteLength;
+                    const percent = ((f.bytes/f.total)*100).toFixed(1);
+                    f.bar.style.width = percent + '%';
+                    f.label.textContent = `${data.name} - ${percent}%`;
+                }
+            }
+            else if(data.type==='end'){
+                const f = rxFiles[data.name];
+                if(f){ f.btn.style.display='block'; ui.status.textContent=`✅ ${data.name} Done`; }
+            }
         }
-    }
-}
     </script>
 </body>
 </html>
