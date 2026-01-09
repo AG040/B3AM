@@ -1,4 +1,4 @@
-/**
+var peer = window.peer;
  * MRLN INFINITY ENGINE v5.0 - MODUL 1: HARDWARE ABSTRACTION LAYER (HAL)
  * -------------------------------------------------------------------
  * Dieses Modul ist für die "Gnadenlose" Analyse der Endgeräte zuständig.
