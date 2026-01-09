@@ -79,41 +79,43 @@ const ui = {
 };
 
 let peer, conn, reqConn;
-let fileQueue = [];  // Sender-Dateien
-let rxQueue = [];    // Empfänger-Dateien
-let completedFiles = 0; // Empfangene Dateien
+
+// --- Sender-Queue + Empfänger-Objekte ---
+let fileQueue = []; 
+let rxFiles = {}; // key = filename, value = {chunks, progress, bar, label, btn, total, bytes, downloadUrl}
+let sending=false;
 
 // --- PeerJS Setup ---
 peer = new Peer(`b3am-${myID}`, { debug: 1 });
 peer.on('open', () => ui.status.textContent = "✅ Engine Online");
 peer.on('error', (err) => {
     ui.btnConnect.disabled = false;
-    ui.status.innerHTML = err.type === 'peer-unavailable'
+    ui.status.innerHTML = err.type==='peer-unavailable'
         ? `<span style="color:var(--error)">⚠️ ID NOT FOUND. CHECK CODE!</span>`
-        : "⚠️ Connection Error: " + err.type;
+        : "⚠️ Connection Error: "+err.type;
 });
 peer.on('connection', (c) => {
     c.on('open', () => {
         reqConn = c;
-        ui.reqId.textContent = c.peer.replace('b3am-', '');
-        ui.modal.style.display = 'flex';
+        ui.reqId.textContent = c.peer.replace('b3am-','');
+        ui.modal.style.display='flex';
     });
 });
 
 // --- Verbindung ---
 ui.btnConnect.addEventListener('click', () => {
     const target = ui.input.value;
-    if(target.length !== 6) return alert("6 Digits required");
-    ui.btnConnect.disabled = true; 
+    if(target.length!==6) return alert("6 Digits required");
+    ui.btnConnect.disabled=true;
     ui.status.textContent = "Searching for ID " + target + "...";
     conn = peer.connect(`b3am-${target}`);
     setupConn();
 });
 
 function answer(yes){
-    ui.modal.style.display = 'none';
+    ui.modal.style.display='none';
     if(yes){
-        conn = reqConn;
+        conn=reqConn;
         conn.send({type:'handshake-ack'});
         ui.connectArea.style.display='none';
         ui.transferArea.style.display='block';
@@ -127,30 +129,30 @@ function setupConn(){
 }
 
 // --- Datei auswählen ---
-ui.dropZone.onclick = () => ui.fileInput.click();
-ui.fileInput.onchange = e => {
+ui.dropZone.onclick = ()=> ui.fileInput.click();
+ui.fileInput.onchange = e=>{
     for(const file of e.target.files){
         fileQueue.push(file);
-        createProgressBar(file.name);
+        createRxUI(file.name);
     }
     if(fileQueue.length>0) startQueue();
 };
 
-// --- Progress-Bars + Download-Buttons ---
-function createProgressBar(fileName){
-    const container = document.createElement('div');
+// --- Progress & Download Buttons pro Datei ---
+function createRxUI(fileName){
+    const container=document.createElement('div');
     container.className='progress-container';
     container.style.marginTop='15px';
 
-    const bar = document.createElement('div');
+    const bar=document.createElement('div');
     bar.className='progress-bar';
     bar.style.width='0%';
 
-    const label = document.createElement('div');
+    const label=document.createElement('div');
     label.className='info-text';
-    label.textContent = fileName + ' - 0.0 MB/s';
+    label.textContent=fileName+' - 0.0 MB/s';
 
-    const btn = document.createElement('button');
+    const btn=document.createElement('button');
     btn.className='main-btn save-btn';
     btn.style.display='none';
     btn.textContent='DOWNLOAD READY - CLICK TO SAVE';
@@ -160,77 +162,71 @@ function createProgressBar(fileName){
     container.appendChild(btn);
     ui.transferArea.appendChild(container);
 
-    rxQueue.push({bar,label,btn,name:fileName,chunks:[],bytes:0,total:0,downloadUrl:null});
+    rxFiles[fileName]={chunks:[],bytes:0,total:0,bar,label,btn,downloadUrl:null};
 
-    btn.onclick = () => {
-        const rxFile = rxQueue.find(f => f.btn===btn);
+    btn.onclick=()=>{
+        const rxFile=rxFiles[fileName];
         if(rxFile && rxFile.downloadUrl){
-            const a = document.createElement('a');
+            const a=document.createElement('a');
             a.href=rxFile.downloadUrl;
-            a.download=rxFile.name;
+            a.download=fileName;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
-            ui.status.textContent=`✅ ${rxFile.name} Saved!`;
-            setTimeout(()=>{btn.style.display='none';},2000);
+            ui.status.textContent=`✅ ${fileName} Saved!`;
+            btn.style.display='none';
         }
     };
 }
 
-// --- Sender-Queue ---
-let sending=false;
+// --- Sender-Queue starten ---
 async function startQueue(){
     if(sending||!conn) return;
     sending=true;
-
     while(fileQueue.length>0){
         const file=fileQueue.shift();
         await sendFileParallel(file);
     }
-
     sending=false;
 }
 
-// --- Parallele Datei-Sendung ---
+// --- Datei parallel senden ---
 async function sendFileParallel(file){
     conn.send({type:'header',name:file.name,size:file.size});
     const reader=file.stream().getReader();
     const start=Date.now();
     let sent=0;
-    const chunkSize = 1024*1024; // 1 MB
-
-    const MAX_PARALLEL = 4; // max 4 Chunks gleichzeitig
-    let activeChunks = 0;
+    const chunkSize=1024*1024; // 1MB
+    const MAX_PARALLEL=4;
+    let active=0;
 
     async function sendChunk(value){
         while(conn.dataChannel.bufferedAmount>1024*1024*128) await new Promise(r=>setTimeout(r,1));
         conn.send({type:'chunk',data:value,name:file.name});
-        sent += value.byteLength;
+        sent+=value.byteLength;
         updateProgress(file.name,sent,file.size,Date.now()-start);
-        activeChunks--;
+        active--;
     }
 
     while(true){
-        const {done,value} = await reader.read();
+        const {done,value}=await reader.read();
         if(done) break;
-        activeChunks++;
+        active++;
         sendChunk(value);
-        while(activeChunks>=MAX_PARALLEL) await new Promise(r=>setTimeout(r,1));
+        while(active>=MAX_PARALLEL) await new Promise(r=>setTimeout(r,1));
     }
-
-    // warten bis alle Chunks gesendet
-    while(activeChunks>0) await new Promise(r=>setTimeout(r,1));
+    while(active>0) await new Promise(r=>setTimeout(r,1));
     conn.send({type:'end',name:file.name});
     ui.status.textContent=`✅ ${file.name} Upload Finished`;
 }
 
 // --- Fortschritt aktualisieren ---
 function updateProgress(fileName,sent,total,ms){
-    const rxFile=rxQueue.find(f=>f.name===fileName);
-    if(!rxFile) return;
+    const f=rxFiles[fileName];
+    if(!f) return;
     const speed=(sent/1024/1024)/(ms/1000);
-    rxFile.bar.style.width=((sent/total)*100).toFixed(1)+'%';
-    rxFile.label.textContent=`${rxFile.name} - ${speed.toFixed(1)} MB/s`;
+    f.bar.style.width=((sent/total)*100).toFixed(1)+'%';
+    f.label.textContent=`${fileName} - ${speed.toFixed(1)} MB/s`;
 }
 
 // --- Empfangene Daten ---
@@ -240,34 +236,31 @@ function handleData(data){
         ui.transferArea.style.display='block';
         ui.status.textContent="⚡ Connected";
     } else if(data.type==='header'){
-        const rxFile=rxQueue.find(f=>f.name===data.name);
-        if(rxFile){
-            rxFile.chunks=[];
-            rxFile.bytes=0;
-            rxFile.total=data.size;
-            rxFile.bar.style.width='0%';
-            rxFile.btn.style.display='none';
+        const f=rxFiles[data.name];
+        if(f){
+            f.chunks=[];
+            f.bytes=0;
+            f.total=data.size;
+            f.bar.style.width='0%';
+            f.btn.style.display='none';
         }
     } else if(data.type==='chunk'){
-        const rxFile=rxQueue.find(f=>f.name===data.name);
-        if(rxFile){
-            rxFile.chunks.push(data.data);
-            rxFile.bytes+=data.data.byteLength;
-            const ms=Date.now()-(rxFile.startTime||(rxFile.startTime=Date.now()));
-            const speed=(rxFile.bytes/1024/1024)/(ms/1000);
-            rxFile.bar.style.width=((rxFile.bytes/rxFile.total)*100).toFixed(1)+'%';
-            rxFile.label.textContent=`${rxFile.name} - ${speed.toFixed(1)} MB/s`;
+        const f=rxFiles[data.name];
+        if(f){
+            f.chunks.push(data.data);
+            f.bytes+=data.data.byteLength;
+            const ms=Date.now()-(f.startTime||(f.startTime=Date.now()));
+            const speed=(f.bytes/1024/1024)/(ms/1000);
+            f.bar.style.width=((f.bytes/f.total)*100).toFixed(1)+'%';
+            f.label.textContent=`${data.name} - ${speed.toFixed(1)} MB/s`;
         }
     } else if(data.type==='end'){
-        const rxFile=rxQueue.find(f=>f.name===data.name);
-        if(rxFile){
-            const blob=new Blob(rxFile.chunks);
-            rxFile.downloadUrl=URL.createObjectURL(blob);
-            completedFiles++;
-            if(completedFiles===rxQueue.length){
-                for(const f of rxQueue) f.btn.style.display='block';
-            }
-            ui.status.textContent=`✅ ${rxFile.name} Ready for Download`;
+        const f=rxFiles[data.name];
+        if(f){
+            const blob=new Blob(f.chunks);
+            f.downloadUrl=URL.createObjectURL(blob);
+            f.btn.style.display='block';
+            ui.status.textContent=`✅ ${data.name} Ready for Download`;
         }
     }
 }
