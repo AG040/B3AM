@@ -492,24 +492,38 @@ const MRLN_BRIDGE = {
     },
 
     // 2. DER DATEN-REAKTOR
+    // 2. DER DATEN-REAKTOR (V5.0 Power-Stream)
     async startStreaming(file) {
+        const conn = window.activeConn; 
+        if (!conn) return alert("FEHLER: Verbindung abgebrochen!");
+
+        console.log("🚀 MRLN CORE: Streaming gestartet...");
         const reader = file.stream().getReader();
-        MRLN_BURST.optimizeForLargeFiles(file.size);
         let totalSent = 0;
 
         while (true) {
             const { done, value } = await reader.read();
             if (done) {
                 await MRLN_FILESYSTEM.finalizeTransfer();
+                // Abschluss-Signal an Gerät B senden
+                conn.send({ type: 'file-end', fileName: file.name });
                 this.updateUIFinal();
                 break;
             }
-            MRLN_RECOVERY.monitorHealth();
+
+            // DATEN PAKETIEREN UND SENDEN
             const secureChunk = await MRLN_SHIELD.encryptBurst(value);
-            await MRLN_FILESYSTEM.writeChunk(secureChunk);
+            
+            // HIER PASSIERT DER ECHTE BEAM:
+            conn.send({
+                type: 'file-chunk',
+                chunk: secureChunk,
+                fileName: file.name,
+                fileSize: file.size
+            });
+
             totalSent += value.byteLength;
             this.syncWithDesign(totalSent, file.size, file.name);
-            await MRLN_BURST.checkUIHealth();
         }
     },
 
