@@ -541,7 +541,7 @@ peer.on('connection', (conn) => {
     const reqIdDisplay = document.getElementById('req-id');
 
     if (modal) {
-        if (reqIdDisplay) reqIdDisplay.textContent = conn.peer.replace('b3am-', '');
+        if (reqIdDisplay) reqIdDisplay.textContent = conn.peer;
         modal.style.display = 'flex';
     }
 
