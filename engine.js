@@ -535,36 +535,6 @@ const MRLN_BRIDGE = {
 
 // 4. DER EMPFÄNGER-LAUSCHER (Hier reagiert Gerät B)
 // WICHTIG: Das muss außerhalb des MRLN_BRIDGE Objekts stehen!
-// --- NEUER EMPFÄNGER-LAUSCHER (Zeile 538) ---
-window.peer.on('connection', (conn) => {
-    console.log("🔔 MRLN: Eingehendes Signal!");
-    const modal = document.getElementById('request-modal');
-    const reqIdDisplay = document.getElementById('req-id');
-
-    if (modal) {
-        if (reqIdDisplay) reqIdDisplay.textContent = conn.peer;
-        modal.style.display = 'flex'; // Sicherheitseinladung zeigen
-    }
-
-    const acceptBtn = document.getElementById('accept-btn');
-    if (acceptBtn) {
-        acceptBtn.onclick = () => {
-            modal.style.display = 'none'; // Fenster zu
-            
-            // UI auf Gerät B umschalten
-            document.getElementById('connect-ui').style.display = 'none';
-            document.getElementById('transfer-ui').style.display = 'block';
-            document.getElementById('status').textContent = "📥 READY TO RECEIVE";
-            
-            // Verbindung bestätigen
-            conn.on('open', () => {
-                conn.send({ type: 'handshake-ack' });
-            });
-            
-            window.activeConn = conn; // Wichtig für den Dateitransfer!
-        };
-    }
-});
 
 // GLOBALER ZUGRIFF
 window.B3AM_ENGINE = MRLN_BRIDGE;
