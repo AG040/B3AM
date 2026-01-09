@@ -494,24 +494,30 @@ const MRLN_BRIDGE = {
     // 2. DER DATEN-REAKTOR
     // 2. DER DATEN-REAKTOR (Direkt-Zünder)
     // --- BLOCK 2: DER DATEN-REAKTOR (V5.0 Power-Stream) ---
+   // --- BLOCK 2: DER DATEN-REAKTOR (MRLN SAFETY MODE) ---
     async startStreaming(file) {
         const conn = window.activeConn; 
-        if (!conn) return alert("FEHLER: Keine Leitung offen!");
+        if (!conn) return alert("FEHLER: Verbindung verloren!");
 
-        console.log("🚀 MRLN CORE: Streaming startet...");
-        const reader = file.stream().getReader();
-        let totalSent = 0;
+        console.log("🚀 MRLN: Starte Direkt-Transfer...");
+        const reader = new FileReader();
 
-        while (true) {
-            const { done, value } = await reader.read();
-            
-            if (done) {
-                // Dem Empfänger sagen: "Ich bin fertig!"
-                conn.send({ type: 'file-end', fileName: file.name });
-                this.updateUIFinal(); 
-                break;
-            }
+        reader.onload = (e) => {
+            // DAS SENDET DIE DATEI IN EINEM STÜCK (Sicherster Weg für den Start)
+            conn.send({
+                type: 'file-chunk',
+                chunk: e.target.result,
+                fileName: file.name,
+                fileSize: file.size
+            });
 
+            console.log("✅ Transfer abgeschlossen");
+            this.syncWithDesign(file.size, file.size, file.name); // Balken auf 100%
+            this.updateUIFinal(); // Status auf "Complete"
+        };
+
+        reader.readAsArrayBuffer(file);
+    },
             // DER ENTSCHEIDENDE BEFEHL (Daten ans Handy senden):
             conn.send({
                 type: 'file-chunk',
