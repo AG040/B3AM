@@ -64,63 +64,43 @@
         </div>
     </div>
 
-   <script>
-    // --- DER FINALE 6-ZAHLEN-ZÜNDSCHLÜSSEL ---
-    document.addEventListener('DOMContentLoaded', () => {
-        // 1. Deine 6-stellige ID erzeugen (wie in deinem Design Zeile 71)
-        const myID = Math.floor(100000 + Math.random() * 900000).toString(); 
-        document.getElementById('my-id').textContent = myID;
+  <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+<script>
+    // 1. ID Generierung (Deine 6 Zahlen)
+    const myID = Math.floor(100000 + Math.random() * 900000).toString();
+    document.getElementById('my-id').textContent = myID;
 
-        // 2. DIE ENGINE STARTEN: Wir sagen PeerJS, dass unsere ID genau diese Nummer ist
-        // WICHTIG: Kein "b3am-" oder sonstiger Text, nur die Nummer!
-        window.peer = new Peer(myID); 
+    // 2. Engine Start
+    const peer = new Peer(myID);
+    window.peer = peer; // Damit die engine.js darauf zugreifen kann
 
-        window.peer.on('open', (id) => {
-            console.log('✅ MRLN Engine Online. ID: ' + id);
-            // Wir nutzen dein Status-Feld aus Zeile 60
-            const statusLabel = document.getElementById('status');
-            if (statusLabel) statusLabel.textContent = "✅ Engine Online";
-        });
-
-        // 3. VERBINDUNG AUFBAUEN (Wenn du auf den Button aus Zeile 54 drückst)
-        const btnConnect = document.getElementById('btn-connect');
-        const inputID = document.getElementById('remote-id-input');
-
-        if (btnConnect) {
-            btnConnect.onclick = () => {
-                const target = inputID.value;
-                if(target.length !== 6) return alert("Bitte die 6 Zahlen von Gerät B eingeben!");
-
-                // Wir rufen Gerät B direkt über die Nummer an
-                const conn = window.peer.connect(target);
-                
-                conn.on('open', () => {
-                    // Dein Interface umschalten (Zeile 52 & 57)
-                    document.getElementById('connect-ui').style.display = 'none';
-                    document.getElementById('transfer-ui').style.display = 'block';
-                    // Verbindung für die engine.js speichern
-                    window.activeConn = conn; 
-                });
-            };
-        }
-
-        // 4. DATEI WÄHLEN (Dein Drag & Drop aus Zeile 58)
-        const dropZone = document.getElementById('drop-zone');
-        const fileInput = document.getElementById('file-input');
-        
-        if (dropZone && fileInput) {
-            dropZone.onclick = () => fileInput.click();
-            fileInput.onchange = async (e) => {
-                const files = e.target.files;
-                if (files.length > 0 && window.B3AM_ENGINE) {
-                    for (let file of files) {
-                        // Startet deine 10 Blöcke in der engine.js
-                        await window.B3AM_ENGINE.initiateUltraTransfer(file);
-                    }
-                }
-            };
-        }
+    peer.on('open', () => {
+        console.log("✅ Dein Code ist aktiv: " + myID);
+        document.getElementById('status').textContent = "⚡ ENGINE READY";
     });
+
+    // 3. DER KNOPF-FIX (ESTABLISH LINK)
+    document.getElementById('btn-connect').onclick = function() {
+        const targetID = document.getElementById('remote-id-input').value;
+        
+        if (targetID.length !== 6) {
+            alert("Bitte genau 6 Zahlen eingeben!");
+            return;
+        }
+
+        console.log("🚀 Verbinde zu: " + targetID);
+        const conn = peer.connect(targetID);
+
+        conn.on('open', () => {
+            // UI Umschalten
+            document.getElementById('connect-ui').style.display = 'none';
+            document.getElementById('transfer-ui').style.display = 'block';
+            window.activeConn = conn;
+        });
+        
+        // Falls es nicht klappt, Button wieder freigeben
+        setTimeout(() => {
+            document.getElementById('status').textContent = "⚡ TRY AGAIN...";
+        }, 3000);
+    };
 </script>
-</body>
-</html>
