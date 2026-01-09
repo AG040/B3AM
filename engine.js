@@ -469,41 +469,23 @@ console.log("🛡️ MRLN Recovery-System v5.0 initialized.");
 /**
  * MRLN INFINITY ENGINE v5.0 - MODUL 7: API-BRIDGE (MAB)
  * -------------------------------------------------------------------
- * Dieses Modul ist der "Dolmetscher". Es verbindet dein Design
- * mit der Hochleistungstechnik im Hintergrund.
  */
 
 const MRLN_BRIDGE = {
-    // 1. DER HAUPTSCHALTER (Startknopf)
-    // Diese Funktion rufst du in deiner app.html auf
+    // 1. DER HAUPTSCHALTER (Sender-Seite)
     async initiateUltraTransfer(file) {
         console.log(`🚀 MAB: Signal received. Starting Ultra-Transfer for: ${file.name}`);
-        
-        // Schritt A: Hardware scannen (Block 1)
         await MRLN_HAL.initScanner();
-        
-        // Schritt B: Sicherheit aktivieren (Block 5)
-        if (!MRLN_SHIELD.isSecurityReady()) {
-            await MRLN_SHIELD.generateSessionKey();
-        }
-
-        // Schritt C: Speicherplatz reservieren (Block 4)
+        if (!MRLN_SHIELD.isSecurityReady()) await MRLN_SHIELD.generateSessionKey();
         await MRLN_FILESYSTEM.prepareStorage(file.name, file.size);
-
-        // Schritt D: Multipath zünden (Block 3)
         MRLN_MULTIPATH.discoverPaths();
-
-        // Schritt E: Daten-Burst starten
         this.startStreaming(file);
     },
 
     // 2. DER DATEN-REAKTOR
-    // Hier fließen alle Module für das 5-GB-Ziel zusammen
     async startStreaming(file) {
         const reader = file.stream().getReader();
-        const burstPower = MRLN_BURST.calculateBurstPower();
         MRLN_BURST.optimizeForLargeFiles(file.size);
-
         let totalSent = 0;
 
         while (true) {
@@ -513,54 +495,34 @@ const MRLN_BRIDGE = {
                 this.updateUIFinal();
                 break;
             }
-
-            // RECOVERY-CHECK (Block 6)
             MRLN_RECOVERY.monitorHealth();
-
-            // VERSCHLÜSSELUNG (Block 5)
             const secureChunk = await MRLN_SHIELD.encryptBurst(value);
-
-            // DIREKT-SCHREIBEN (Block 4)
             await MRLN_FILESYSTEM.writeChunk(secureChunk);
-
-            // STATISTIK-UPDATE
             totalSent += value.byteLength;
-            this.syncWithDesign(totalSent, file.size);
-            
-            // UI-FLÜSSIGKEIT BEWAHREN (Block 2)
+            this.syncWithDesign(totalSent, file.size, file.name);
             await MRLN_BURST.checkUIHealth();
         }
     },
 
     // 3. DESIGN-SYNCHRONISATION
-    // Schickt die Live-Daten an dein Interface (app.html)
-    MRLN_BRIDGE.syncWithDesign = function(sent, total, fileName) {
-    // 1. Wir erstellen eine ID aus dem Dateinamen (wie in deiner alten Logik)
-    const id = fileName.replace(/\s+/g, '-');
-    
-    // 2. Wir suchen deinen Ladebalken und das Label
-    const bar = document.getElementById(`bar-${id}`);
-    const lbl = document.getElementById(`lbl-${id}`);
-    
-    // 3. Prozent berechnen
-    const percent = ((sent / total) * 100).toFixed(1);
+    syncWithDesign(sent, total, fileName) {
+        if (!fileName) return;
+        const id = fileName.replace(/\s+/g, '-');
+        const bar = document.getElementById(`bar-${id}`);
+        const lbl = document.getElementById(`lbl-${id}`);
+        const percent = ((sent / total) * 100).toFixed(1);
 
-    // 4. Dein Design aktualisieren
-    if (bar) {
-        bar.style.width = percent + "%";
-    }
-    if (lbl) {
-        lbl.textContent = `${fileName} - ${percent}%`;
-    }
+        if (bar) bar.style.width = percent + "%";
+        if (lbl) lbl.textContent = `${fileName} - ${percent}%`;
 
-    // 5. Status-Zentrale (Das ⚡ LINK ESTABLISHED Feld)
-    const mainStatus = document.getElementById('status');
-    if (mainStatus && percent < 100) {
-        mainStatus.innerHTML = `⚡ BEAMING: <span style="color:var(--success)">${percent}%</span>`;
-    } else if (mainStatus && percent >= 100) {
-        mainStatus.innerHTML = `✅ TRANSFER COMPLETE`;
-    }
-};
+        const mainStatus = document.getElementById('status');
+        if (mainStatus) {
+            mainStatus.innerHTML = percent < 100 
+                ? `⚡ BEAMING: <span style="color:var(--success)">${percent}%</span>`
+                : `✅ TRANSFER COMPLETE`;
+        }
+    },
+
     updateUIFinal() {
         const statusEl = document.getElementById('status');
         if (statusEl) {
@@ -570,36 +532,34 @@ const MRLN_BRIDGE = {
         console.log("🏆 MRLN: Mission Accomplished. 5GB delivered.");
     }
 };
-// 1. Die Engine auf Gerät B hört zu
+
+// 4. DER EMPFÄNGER-LAUSCHER (Hier reagiert Gerät B)
+// WICHTIG: Das muss außerhalb des MRLN_BRIDGE Objekts stehen!
 peer.on('connection', (conn) => {
-    // 2. Sobald jemand anklopft, holen wir das Modal aus deiner app.html
+    console.log("🔔 Signal empfangen!");
     const modal = document.getElementById('request-modal');
     const reqIdDisplay = document.getElementById('req-id');
 
     if (modal) {
-        // ID des Senders anzeigen (wir schneiden das 'b3am-' weg)
         if (reqIdDisplay) reqIdDisplay.textContent = conn.peer.replace('b3am-', '');
-        
-        // DAS FENSTER ZEIGEN
         modal.style.display = 'flex';
-        console.log("🔔 MRLN: Eingehende Anfrage von " + conn.peer);
     }
 
-    // 3. Wenn der Nutzer auf "ACCEPT" klickt
-    document.getElementById('accept-btn').onclick = () => {
-        modal.style.display = 'none';
-        
-        // Signal an Gerät A: "Ich bin bereit!"
-        conn.on('open', () => {
-            conn.send({ type: 'handshake-ack' });
-            
-            // Interface umschalten auf Transfer-Modus
-            document.getElementById('connect-ui').style.display = 'none';
-            document.getElementById('transfer-ui').style.display = 'block';
-        });
-    };
+    const acceptBtn = document.getElementById('accept-btn');
+    if (acceptBtn) {
+        acceptBtn.onclick = () => {
+            modal.style.display = 'none';
+            // Wir sagen Gerät A sofort, dass wir da sind
+            conn.on('open', () => {
+                conn.send({ type: 'handshake-ack' });
+                document.getElementById('connect-ui').style.display = 'none';
+                document.getElementById('transfer-ui').style.display = 'block';
+            });
+        };
+    }
 });
-// GLOBALER ZUGRIFF: Damit dein Button in app.html die Engine findet
+
+// GLOBALER ZUGRIFF
 window.B3AM_ENGINE = MRLN_BRIDGE;
 /**
  * MRLN INFINITY ENGINE v5.0 - MODUL 8: AI-SPEED-OPTIMIZER (ASO)
