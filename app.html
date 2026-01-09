@@ -105,7 +105,7 @@
             dropZone.onclick = () => fileInput.click();
             fileInput.onchange = async (e) => {
                 const files = e.target.files;
-                if (files.length > 0 && window.B3AM_ENGINE) {
+              if (files.length > 0 && window.B3AM_ENGINE && window.activeConn) {
                     for (let file of files) {
                         await window.B3AM_ENGINE.initiateUltraTransfer(file);
                     }
