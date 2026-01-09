@@ -492,15 +492,23 @@ const MRLN_BRIDGE = {
     },
 
     // 2. DER DATEN-REAKTOR
+    // 2. DER DATEN-REAKTOR (Direkt-Zünder)
     async startStreaming(file) {
+        // Wir holen uns die Leitung, die in app.html geöffnet wurde
         const conn = window.activeConn; 
-        if (!conn) return alert("FEHLER: Keine Leitung zu Gerät B!");
+        
+        if (!conn || !conn.open) {
+            alert("FEHLER: Keine aktive Leitung zu Gerät B!");
+            return;
+        }
 
-        console.log("🚀 MRLN CORE: Beam startet...");
+        console.log("🚀 MRLN CORE: Beam startet für: " + file.name);
+        document.getElementById('status').textContent = "📡 SENDING DATA...";
+
         const reader = new FileReader();
         
         reader.onload = (event) => {
-            // DAS IST DER BEFEHL, DER DIE DATEI SCHICKT:
+            // DAS IST DER BEFEHL, DER DIE DATEI ÜBERTRÄGT:
             conn.send({
                 type: 'file-chunk',
                 chunk: event.target.result,
@@ -508,11 +516,16 @@ const MRLN_BRIDGE = {
                 fileSize: file.size
             });
 
-            console.log("✅ MRLN: Daten abgeschickt!");
+            console.log("✅ MRLN: Daten-Paket abgeschickt!");
             document.getElementById('status').textContent = "✔️ TRANSFER COMPLETE";
-            this.updateUIFinal(); // Balken auf 100%
+            
+            // UI auf 100% setzen (Block 3 in deiner Engine)
+            if (this.updateUIFinal) this.updateUIFinal();
         };
 
+        // Die Datei als Daten-Paket einlesen
+        reader.readAsArrayBuffer(file);
+    },
         reader.readAsArrayBuffer(file);
     },
             const secureChunk = await MRLN_SHIELD.encryptBurst(value);
