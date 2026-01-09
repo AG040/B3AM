@@ -81,38 +81,48 @@ function resetUI() {
 document.addEventListener('DOMContentLoaded', () => {
     const peer = new Peer(myID);
     window.peer = peer;
+// --- EMPFÄNGER-SEITE (Gerät B) ---
+peer.on('connection', (conn) => {
+    window.activeConn = conn;
+    
+    // 1. Benachrichtigung (Modal) anzeigen
+    const modal = document.getElementById('request-modal');
+    document.getElementById('req-id').textContent = conn.peer;
+    modal.style.display = 'flex';
 
-    peer.on('connection', (conn) => {
-        window.activeConn = conn;
-        // Gerät B reagiert auf Schließen der Verbindung
-        conn.on('close', resetUI);
+    // 2. REAKTION AUF AKZEPTIEREN
+    document.getElementById('accept-btn').onclick = () => {
+        modal.style.display = 'none';
+        document.getElementById('connect-ui').style.display = 'none';
+        document.getElementById('transfer-ui').style.display = 'block';
         
-        // Modal anzeigen
-        const modal = document.getElementById('request-modal');
-        document.getElementById('req-id').textContent = conn.peer;
-        modal.style.display = 'flex';
+        // DAS IST DAS WICHTIGSTE: B sagt A Bescheid!
+        conn.send({ type: 'handshake-ack' });
+    };
+    
+    conn.on('close', () => location.reload());
+});
 
-        document.getElementById('accept-btn').onclick = () => {
-            modal.style.display = 'none';
+// --- SENDER-SEITE (Gerät A) ---
+document.getElementById('btn-connect').onclick = () => {
+    const targetID = document.getElementById('remote-id-input').value;
+    const conn = peer.connect(targetID);
+    window.activeConn = conn;
+
+    // A schaltet NICHT sofort um, sondern wartet!
+    document.getElementById('status').textContent = "⌛ Warte auf Bestätigung von " + targetID;
+
+    conn.on('data', (data) => {
+        // Erst wenn das Signal von B kommt, schaltet A um
+        if (data.type === 'handshake-ack') {
             document.getElementById('connect-ui').style.display = 'none';
             document.getElementById('transfer-ui').style.display = 'block';
-        };
+            document.getElementById('status').textContent = "🚀 VERBUNDEN";
+        }
     });
 
-    document.getElementById('btn-connect').onclick = () => {
-        const targetID = document.getElementById('remote-id-input').value;
-        const conn = peer.connect(targetID);
-        window.activeConn = conn;
-        
-        conn.on('open', () => {
-            document.getElementById('connect-ui').style.display = 'none';
-            document.getElementById('transfer-ui').style.display = 'block';
-        });
-        
-        // Gerät A reagiert auf Schließen der Verbindung
-        conn.on('close', resetUI);
-    };
-
+    conn.on('close', () => location.reload());
+};
     // DISCONNECT BUTTON FIX
 const disBtn = document.getElementById('btn-disconnect');
 if (disBtn) {
