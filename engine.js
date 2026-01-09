@@ -492,18 +492,16 @@ const MRLN_BRIDGE = {
     },
 
     // 2. DER DATEN-REAKTOR
-    // 2. DER DATEN-REAKTOR (Direkt-Zünder)
-    // --- BLOCK 2: DER DATEN-REAKTOR (V5.0 Power-Stream) ---
-   // --- BLOCK 2: DER DATEN-REAKTOR (MRLN SAFETY MODE) ---
+ // --- BLOCK 2: DER DATEN-REAKTOR (MRLN SAFETY MODE) ---
     async startStreaming(file) {
         const conn = window.activeConn; 
-        if (!conn) return alert("FEHLER: Verbindung verloren!");
+        if (!conn) return alert("FEHLER: Keine Leitung zu Gerät B!");
 
         console.log("🚀 MRLN: Starte Direkt-Transfer...");
         const reader = new FileReader();
 
         reader.onload = (e) => {
-            // DAS SENDET DIE DATEI IN EINEM STÜCK (Sicherster Weg für den Start)
+            // DAS SENDET DIE DATEI DIREKT UND SICHER
             conn.send({
                 type: 'file-chunk',
                 chunk: e.target.result,
