@@ -67,53 +67,64 @@
 <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
 
 <script>
-    // 2. ID SOFORT ERZEUGEN (Damit die blauen Zahlen sofort erscheinen)
+  // 1. ID erzeugen
     const myID = Math.floor(100000 + Math.random() * 900000).toString();
-    const idElement = document.getElementById('my-id');
-    if (idElement) idElement.textContent = myID;
+    document.getElementById('my-id').textContent = myID;
 
     document.addEventListener('DOMContentLoaded', () => {
-        // 3. ENGINE STARTEN
+        // 2. Engine starten
         const peer = new Peer(myID);
         window.peer = peer;
 
-        peer.on('open', () => {
-            const statusLabel = document.getElementById('status');
-            if (statusLabel) statusLabel.textContent = "⚡ ENGINE READY";
-        });
+        // 3. DER WACHMANN (HIER REAGIERT GERÄT B!)
+        peer.on('connection', (conn) => {
+            console.log("🔔 Signal empfangen!");
+            const modal = document.getElementById('request-modal');
+            const reqIdDisplay = document.getElementById('req-id');
+            
+            if (modal) {
+                if (reqIdDisplay) reqIdDisplay.textContent = conn.peer;
+                modal.style.display = 'flex'; // Einladung zeigen
+            }
 
-        // 4. VERBINDUNGS-KNOPF FIX
-        const btnConnect = document.getElementById('btn-connect');
-        if (btnConnect) {
-            btnConnect.onclick = function() {
-                const targetID = document.getElementById('remote-id-input').value;
-                if (targetID.length !== 6) return alert("Bitte 6 Zahlen eingeben!");
-
-                const conn = peer.connect(targetID);
+            document.getElementById('accept-btn').onclick = () => {
+                modal.style.display = 'none';
+                document.getElementById('connect-ui').style.display = 'none';
+                document.getElementById('transfer-ui').style.display = 'block';
+                window.activeConn = conn;
                 conn.on('open', () => {
-                    document.getElementById('connect-ui').style.display = 'none';
-                    document.getElementById('transfer-ui').style.display = 'block';
-                    window.activeConn = conn;
+                    conn.send({ type: 'handshake-ack' });
                 });
             };
-        }
+        });
 
-        // 5. DATEI-AUSWAHL FIX
-        const dropZone = document.getElementById('drop-zone');
+        // 4. VERBINDUNG STARTEN (GERÄT A)
+        document.getElementById('btn-connect').onclick = function() {
+            const targetID = document.getElementById('remote-id-input').value;
+            if (targetID.length !== 6) return alert("6 Zahlen eingeben!");
+            
+            const conn = peer.connect(targetID);
+            window.activeConn = conn; // Verbindung für Sender speichern
+
+            conn.on('open', () => {
+                document.getElementById('connect-ui').style.display = 'none';
+                document.getElementById('transfer-ui').style.display = 'block';
+            });
+        };
+        
+        // 5. DATEI SENDEN
         const fileInput = document.getElementById('file-input');
-        if (dropZone && fileInput) {
-            dropZone.onclick = () => fileInput.click();
-            fileInput.onchange = async (e) => {
-                const files = e.target.files;
-              if (files.length > 0 && window.B3AM_ENGINE && window.activeConn) {
-                    for (let file of files) {
-                        await window.B3AM_ENGINE.initiateUltraTransfer(file);
-                    }
+        document.getElementById('drop-zone').onclick = () => fileInput.click();
+        
+        fileInput.onchange = async (e) => {
+            const files = e.target.files;
+            if (files.length > 0 && window.activeConn && window.B3AM_ENGINE) {
+                for (let file of files) {
+                    await window.B3AM_ENGINE.initiateUltraTransfer(file);
                 }
-            };
-        }
+            }
+        };
     });
-</script>
 
 <script src="engine.js"></script>
 </body>
