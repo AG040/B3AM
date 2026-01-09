@@ -63,7 +63,8 @@
     </div>
 
     <script>
-        
+/* ================== INIT ================== */
+
 const myID = Math.floor(100000 + Math.random() * 900000);
 document.getElementById('my-id').textContent = myID;
 
@@ -82,18 +83,14 @@ const ui = {
     reqId: document.getElementById('req-id')
 };
 
+ui.fileInput.multiple = true;
+
 let peer, conn, reqConn;
 
 /* ================== PEER ================== */
 
 peer = new Peer(`b3am-${myID}`, { debug: 1 });
-
 peer.on('open', () => ui.status.textContent = "✅ Engine Online");
-
-peer.on('error', err => {
-    ui.btnConnect.disabled = false;
-    ui.status.textContent = "⚠️ " + err.type;
-});
 
 peer.on('connection', c => {
     c.on('open', () => {
@@ -130,39 +127,69 @@ function setupConn() {
     conn.on('close', () => location.reload());
 }
 
-/* ================== SEND ================== */
+/* ================== MULTI FILE QUEUE ================== */
+
+let fileQueue = [];
+let activeFile = null;
+let sending = false;
 
 ui.dropZone.onclick = () => ui.fileInput.click();
-ui.fileInput.onchange = e => startStream(e.target.files[0]);
 
-const MAX_BUFFER = 128 * 1024 * 1024;   // 128MB
-const MAX_RAM_RX = 512 * 1024 * 1024;   // 512MB RAM cap
-let CHUNK_SIZE = 1024 * 1024;           // start 1MB
+ui.fileInput.onchange = e => {
+    enqueueFiles([...e.target.files]);
+};
+
+ui.dropZone.ondrop = e => {
+    e.preventDefault();
+    enqueueFiles([...e.dataTransfer.files]);
+};
+
+ui.dropZone.ondragover = e => e.preventDefault();
+
+function enqueueFiles(files) {
+    if (!files.length) return;
+    fileQueue.push(...files);
+    if (!sending) sendNextFile();
+}
+
+/* ================== SEND ================== */
+
+const MAX_BUFFER = 128 * 1024 * 1024;
+let CHUNK_SIZE = 1024 * 1024;
 
 let sendOffset = 0;
-let fileRef, fileHash;
+let fileHash = null;
 
-async function startStream(file) {
-    if (!conn || !conn.dataChannel) return;
+async function sendNextFile() {
+    if (!fileQueue.length || !conn?.dataChannel) {
+        sending = false;
+        ui.status.textContent = "✅ Queue Finished";
+        return;
+    }
 
-    fileRef = file;
+    sending = true;
+    activeFile = fileQueue.shift();
     sendOffset = 0;
 
-    const buf = await file.arrayBuffer();
-    fileHash = await crypto.subtle.digest('SHA-256', buf);
+    ui.status.textContent = "⬆ Sending: " + activeFile.name;
+
+    const buf = await activeFile.arrayBuffer();
+    fileHash = Array.from(new Uint8Array(
+        await crypto.subtle.digest('SHA-256', buf)
+    ));
 
     conn.send({
         type: 'header',
-        name: file.name,
-        size: file.size,
-        hash: Array.from(new Uint8Array(fileHash))
+        name: activeFile.name,
+        size: activeFile.size,
+        hash: fileHash
     });
 
-    streamFromOffset();
+    streamFile();
 }
 
-async function streamFromOffset() {
-    const reader = fileRef.slice(sendOffset).stream().getReader();
+async function streamFile() {
+    const reader = activeFile.slice(sendOffset).stream().getReader();
     const start = Date.now();
     let sent = sendOffset;
     let lastUI = 0;
@@ -187,7 +214,7 @@ async function streamFromOffset() {
 
         const now = Date.now();
         if (now - lastUI > 250) {
-            ui.progBar.style.width = ((sent / fileRef.size) * 100).toFixed(1) + "%";
+            ui.progBar.style.width = ((sent / activeFile.size) * 100).toFixed(1) + "%";
             ui.speed.textContent =
                 `${((sent / 1024 / 1024) / ((now - start) / 1000)).toFixed(1)} MB/s`;
             lastUI = now;
@@ -195,12 +222,6 @@ async function streamFromOffset() {
     }
 
     conn.send({ type: 'end' });
-    ui.status.textContent = "✅ Upload Finished";
-}
-
-function adaptChunk(good) {
-    if (good && CHUNK_SIZE < 2 * 1024 * 1024) CHUNK_SIZE += 64 * 1024;
-    if (!good && CHUNK_SIZE > 256 * 1024) CHUNK_SIZE -= 64 * 1024;
 }
 
 /* ================== RECEIVE ================== */
@@ -232,29 +253,20 @@ function handleData(data) {
     else if (data.type === 'chunk') {
         rxChunks.push(data.data);
         rxBytes += data.data.byteLength;
-
-        if (rxBytes > MAX_RAM_RX) {
-            conn.send({ type: 'resume', offset: rxBytes });
-            rxChunks = [];
-        }
-
         ui.progBar.style.width = ((rxBytes / rxTotal) * 100).toFixed(1) + "%";
     }
 
-    else if (data.type === 'resume') {
-        sendOffset = data.offset;
-        streamFromOffset();
-    }
-
     else if (data.type === 'end') {
-        finalizeFile();
+        finalizeReceive();
     }
 }
 
-async function finalizeFile() {
+async function finalizeReceive() {
     const blob = new Blob(rxChunks);
     const buf = await blob.arrayBuffer();
-    const hash = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', buf)));
+    const hash = Array.from(new Uint8Array(
+        await crypto.subtle.digest('SHA-256', buf)
+    ));
 
     if (hash.join() !== rxHash.join()) {
         ui.status.textContent = "❌ Hash mismatch – retrying";
@@ -264,8 +276,10 @@ async function finalizeFile() {
 
     downloadUrl = URL.createObjectURL(blob);
     ui.btnSave.style.display = 'block';
-    ui.status.textContent = "✅ Ready for Download";
+    ui.status.textContent = "✅ Ready: " + rxName;
     ui.progBar.style.width = "100%";
+
+    sendNextFile(); // 🔁 nächste Datei
 }
 
 /* ================== SAVE ================== */
