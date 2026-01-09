@@ -492,26 +492,29 @@ const MRLN_BRIDGE = {
     },
 
     // 2. DER DATEN-REAKTOR
-    // 2. DER DATEN-REAKTOR (V5.0 Power-Stream)
     async startStreaming(file) {
         const conn = window.activeConn; 
-        if (!conn) return alert("FEHLER: Verbindung abgebrochen!");
+        if (!conn) return alert("FEHLER: Keine Leitung zu Gerät B!");
 
-        console.log("🚀 MRLN CORE: Streaming gestartet...");
-        const reader = file.stream().getReader();
-        let totalSent = 0;
+        console.log("🚀 MRLN CORE: Beam startet...");
+        const reader = new FileReader();
+        
+        reader.onload = (event) => {
+            // DAS IST DER BEFEHL, DER DIE DATEI SCHICKT:
+            conn.send({
+                type: 'file-chunk',
+                chunk: event.target.result,
+                fileName: file.name,
+                fileSize: file.size
+            });
 
-        while (true) {
-            const { done, value } = await reader.read();
-            if (done) {
-                await MRLN_FILESYSTEM.finalizeTransfer();
-                // Abschluss-Signal an Gerät B senden
-                conn.send({ type: 'file-end', fileName: file.name });
-                this.updateUIFinal();
-                break;
-            }
+            console.log("✅ MRLN: Daten abgeschickt!");
+            document.getElementById('status').textContent = "✔️ TRANSFER COMPLETE";
+            this.updateUIFinal(); // Balken auf 100%
+        };
 
-            // DATEN PAKETIEREN UND SENDEN
+        reader.readAsArrayBuffer(file);
+    },
             const secureChunk = await MRLN_SHIELD.encryptBurst(value);
             
             // HIER PASSIERT DER ECHTE BEAM:
