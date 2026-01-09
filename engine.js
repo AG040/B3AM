@@ -493,25 +493,39 @@ const MRLN_BRIDGE = {
 
     // 2. DER DATEN-REAKTOR
     // 2. DER DATEN-REAKTOR (Direkt-Zünder)
+    // --- BLOCK 2: DER DATEN-REAKTOR (V5.0 Power-Stream) ---
     async startStreaming(file) {
-        // Wir holen uns die Leitung, die in app.html geöffnet wurde
         const conn = window.activeConn; 
-        
-        if (!conn || !conn.open) {
-            alert("FEHLER: Keine aktive Leitung zu Gerät B!");
-            return;
-        }
+        if (!conn) return alert("FEHLER: Keine Leitung offen!");
 
-        console.log("🚀 MRLN CORE: Beam startet für: " + file.name);
-        document.getElementById('status').textContent = "📡 SENDING DATA...";
+        console.log("🚀 MRLN CORE: Streaming startet...");
+        const reader = file.stream().getReader();
+        let totalSent = 0;
 
-        const reader = new FileReader();
-        
-        reader.onload = (event) => {
-            // DAS IST DER BEFEHL, DER DIE DATEI ÜBERTRÄGT:
+        while (true) {
+            const { done, value } = await reader.read();
+            
+            if (done) {
+                // Dem Empfänger sagen: "Ich bin fertig!"
+                conn.send({ type: 'file-end', fileName: file.name });
+                this.updateUIFinal(); 
+                break;
+            }
+
+            // DER ENTSCHEIDENDE BEFEHL (Daten ans Handy senden):
             conn.send({
                 type: 'file-chunk',
-                chunk: event.target.result,
+                chunk: value,
+                fileName: file.name,
+                fileSize: file.size
+            });
+
+            totalSent += value.byteLength;
+
+            // DEN BALKEN AKTUALISIEREN:
+            this.syncWithDesign(totalSent, file.size, file.name);
+        }
+    },
                 fileName: file.name,
                 fileSize: file.size
             });
