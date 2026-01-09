@@ -534,17 +534,33 @@ const MRLN_BRIDGE = {
 
     // 3. DESIGN-SYNCHRONISATION
     // Schickt die Live-Daten an dein Interface (app.html)
-    syncWithDesign(sent, total) {
-        const percent = ((sent / total) * 100).toFixed(1);
-        
-        // Wir suchen deine IDs aus dem Design
-        const statusEl = document.getElementById('status');
-        const progressEl = document.getElementById('progress-bar') || document.getElementById('my-id');
+    MRLN_BRIDGE.syncWithDesign = function(sent, total, fileName) {
+    // 1. Wir erstellen eine ID aus dem Dateinamen (wie in deiner alten Logik)
+    const id = fileName.replace(/\s+/g, '-');
+    
+    // 2. Wir suchen deinen Ladebalken und das Label
+    const bar = document.getElementById(`bar-${id}`);
+    const lbl = document.getElementById(`lbl-${id}`);
+    
+    // 3. Prozent berechnen
+    const percent = ((sent / total) * 100).toFixed(1);
 
-        if (statusEl) statusEl.innerText = `Transferring: ${percent}%`;
-        if (progressEl) progressEl.style.width = `${percent}%`;
-    },
+    // 4. Dein Design aktualisieren
+    if (bar) {
+        bar.style.width = percent + "%";
+    }
+    if (lbl) {
+        lbl.textContent = `${fileName} - ${percent}%`;
+    }
 
+    // 5. Status-Zentrale (Das ⚡ LINK ESTABLISHED Feld)
+    const mainStatus = document.getElementById('status');
+    if (mainStatus && percent < 100) {
+        mainStatus.innerHTML = `⚡ BEAMING: <span style="color:var(--success)">${percent}%</span>`;
+    } else if (mainStatus && percent >= 100) {
+        mainStatus.innerHTML = `✅ TRANSFER COMPLETE`;
+    }
+};
     updateUIFinal() {
         const statusEl = document.getElementById('status');
         if (statusEl) {
