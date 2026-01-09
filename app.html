@@ -64,7 +64,6 @@
 
     <script>
 /* ================== INIT ================== */
-
 const myID = Math.floor(100000 + Math.random() * 900000);
 document.getElementById('my-id').textContent = myID;
 
@@ -83,13 +82,19 @@ const ui = {
     reqId: document.getElementById('req-id')
 };
 
+// Multi-File Support
 ui.fileInput.multiple = true;
+let fileQueue = [];
+let activeFile = null;
+let sending = false;
 
-let peer, conn, reqConn;
+// Array für dynamische Empfänger-Balken
+const rxBars = [];
 
 /* ================== PEER ================== */
-
+let peer, conn, reqConn;
 peer = new Peer(`b3am-${myID}`, { debug: 1 });
+
 peer.on('open', () => ui.status.textContent = "✅ Engine Online");
 
 peer.on('connection', c => {
@@ -100,8 +105,9 @@ peer.on('connection', c => {
     });
 });
 
-/* ================== CONNECT ================== */
+peer.on('error', err => ui.status.textContent = "⚠️ " + err.type);
 
+/* ================== CONNECT ================== */
 ui.btnConnect.onclick = () => {
     const target = ui.input.value;
     if (target.length !== 6) return alert("6 Digits required");
@@ -127,23 +133,10 @@ function setupConn() {
     conn.on('close', () => location.reload());
 }
 
-/* ================== MULTI FILE QUEUE ================== */
-
-let fileQueue = [];
-let activeFile = null;
-let sending = false;
-
+/* ================== MULTI-FILE QUEUE ================== */
 ui.dropZone.onclick = () => ui.fileInput.click();
-
-ui.fileInput.onchange = e => {
-    enqueueFiles([...e.target.files]);
-};
-
-ui.dropZone.ondrop = e => {
-    e.preventDefault();
-    enqueueFiles([...e.dataTransfer.files]);
-};
-
+ui.fileInput.onchange = e => enqueueFiles([...e.target.files]);
+ui.dropZone.ondrop = e => { e.preventDefault(); enqueueFiles([...e.dataTransfer.files]); };
 ui.dropZone.ondragover = e => e.preventDefault();
 
 function enqueueFiles(files) {
@@ -153,7 +146,6 @@ function enqueueFiles(files) {
 }
 
 /* ================== SEND ================== */
-
 const MAX_BUFFER = 128 * 1024 * 1024;
 let CHUNK_SIZE = 1024 * 1024;
 
@@ -161,22 +153,15 @@ let sendOffset = 0;
 let fileHash = null;
 
 async function sendNextFile() {
-    if (!fileQueue.length || !conn?.dataChannel) {
-        sending = false;
-        ui.status.textContent = "✅ Queue Finished";
-        return;
-    }
+    if (!fileQueue.length || !conn?.dataChannel) { sending = false; ui.status.textContent = "✅ Queue Finished"; return; }
 
     sending = true;
     activeFile = fileQueue.shift();
     sendOffset = 0;
-
     ui.status.textContent = "⬆ Sending: " + activeFile.name;
 
     const buf = await activeFile.arrayBuffer();
-    fileHash = Array.from(new Uint8Array(
-        await crypto.subtle.digest('SHA-256', buf)
-    ));
+    fileHash = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', buf)));
 
     conn.send({
         type: 'header',
@@ -195,10 +180,7 @@ async function streamFile() {
     let lastUI = 0;
 
     while (true) {
-        while (conn.dataChannel.bufferedAmount > MAX_BUFFER) {
-            await new Promise(r => setTimeout(r, 10));
-            adaptChunk(false);
-        }
+        while (conn.dataChannel.bufferedAmount > MAX_BUFFER) await new Promise(r => setTimeout(r, 10));
 
         const { done, value } = await reader.read();
         if (done) break;
@@ -210,13 +192,10 @@ async function streamFile() {
             sendOffset = sent;
         }
 
-        adaptChunk(true);
-
         const now = Date.now();
         if (now - lastUI > 250) {
             ui.progBar.style.width = ((sent / activeFile.size) * 100).toFixed(1) + "%";
-            ui.speed.textContent =
-                `${((sent / 1024 / 1024) / ((now - start) / 1000)).toFixed(1)} MB/s`;
+            ui.speed.textContent = `${((sent / 1024 / 1024) / ((now - start) / 1000)).toFixed(1)} MB/s`;
             lastUI = now;
         }
     }
@@ -225,73 +204,94 @@ async function streamFile() {
 }
 
 /* ================== RECEIVE ================== */
+let rxQueue = [];
+function createRxBar(name) {
+    const container = document.createElement('div');
+    container.style.marginTop = '15px';
+    const label = document.createElement('div');
+    label.textContent = name;
+    label.style.color = 'var(--success)';
+    label.style.fontFamily = 'monospace';
+    label.style.fontSize = '0.9rem';
+    const barOuter = document.createElement('div');
+    barOuter.style.background = '#111';
+    barOuter.style.borderRadius = '6px';
+    barOuter.style.height = '8px';
+    barOuter.style.marginTop = '4px';
+    barOuter.style.overflow = 'hidden';
+    const barInner = document.createElement('div');
+    barInner.style.height = '100%';
+    barInner.style.width = '0%';
+    barInner.style.background = 'var(--success)';
+    barOuter.appendChild(barInner);
+    container.appendChild(label);
+    container.appendChild(barOuter);
+    ui.transferArea.appendChild(container);
+    return { container, bar: barInner };
+}
 
-let rxChunks = [];
-let rxBytes = 0;
-let rxTotal = 0;
-let rxName = "";
-let rxHash = null;
-let downloadUrl = null;
+let rxActive = null;
 
 function handleData(data) {
     if (data.type === 'handshake-ack') {
         ui.connectArea.style.display = 'none';
         ui.transferArea.style.display = 'block';
         ui.status.textContent = "⚡ Connected";
-    }
-
-    else if (data.type === 'header') {
-        rxChunks = [];
-        rxBytes = 0;
-        rxTotal = data.size;
-        rxName = data.name;
-        rxHash = data.hash;
-        ui.btnSave.style.display = 'none';
-        ui.progBar.style.width = "0%";
-    }
-
-    else if (data.type === 'chunk') {
-        rxChunks.push(data.data);
-        rxBytes += data.data.byteLength;
-        ui.progBar.style.width = ((rxBytes / rxTotal) * 100).toFixed(1) + "%";
-    }
-
-    else if (data.type === 'end') {
-        finalizeReceive();
+    } else if (data.type === 'header') {
+        const barObj = createRxBar(data.name);
+        rxActive = {
+            name: data.name,
+            size: data.size,
+            hash: data.hash,
+            chunks: [],
+            bytes: 0,
+            start: Date.now(),
+            barObj
+        };
+        rxQueue.push(rxActive);
+    } else if (data.type === 'chunk') {
+        if (!rxActive) return;
+        rxActive.chunks.push(data.data);
+        rxActive.bytes += data.data.byteLength;
+        rxActive.barObj.bar.style.width = ((rxActive.bytes / rxActive.size) * 100).toFixed(1) + "%";
+    } else if (data.type === 'end') {
+        finalizeRx(rxActive);
     }
 }
 
-async function finalizeReceive() {
-    const blob = new Blob(rxChunks);
+async function finalizeRx(rx) {
+    const blob = new Blob(rx.chunks);
     const buf = await blob.arrayBuffer();
-    const hash = Array.from(new Uint8Array(
-        await crypto.subtle.digest('SHA-256', buf)
-    ));
-
-    if (hash.join() !== rxHash.join()) {
-        ui.status.textContent = "❌ Hash mismatch – retrying";
-        conn.send({ type: 'resume', offset: rxBytes });
+    const hash = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', buf)));
+    if (hash.join() !== rx.hash.join()) {
+        ui.status.textContent = `❌ Hash mismatch: ${rx.name}`;
+        conn.send({ type: 'resume', offset: rx.bytes });
         return;
     }
-
-    downloadUrl = URL.createObjectURL(blob);
-    ui.btnSave.style.display = 'block';
-    ui.status.textContent = "✅ Ready: " + rxName;
-    ui.progBar.style.width = "100%";
-
-    sendNextFile(); // 🔁 nächste Datei
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = rx.name;
+    a.textContent = "DOWNLOAD " + rx.name;
+    a.style.display = "block";
+    a.style.marginTop = "5px";
+    rx.barObj.container.appendChild(a);
+    ui.status.textContent = `✅ Received: ${rx.name}`;
 }
 
-/* ================== SAVE ================== */
+/* ================== NEW CODE BUTTON ================== */
+const newCodeBtn = document.createElement('button');
+newCodeBtn.textContent = "NEW CODE";
+newCodeBtn.className = "main-btn";
+newCodeBtn.style.marginTop = "15px";
+ui.transferArea.appendChild(newCodeBtn);
 
-ui.btnSave.onclick = () => {
-    const a = document.createElement('a');
-    a.href = downloadUrl;
-    a.download = rxName;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    ui.status.textContent = "✅ File Saved!";
+newCodeBtn.onclick = () => {
+    myID = Math.floor(100000 + Math.random() * 900000);
+    document.getElementById('my-id').textContent = myID;
+    if (peer) peer.destroy();
+    peer = new Peer(`b3am-${myID}`, { debug: 1 });
+    peer.on('open', () => ui.status.textContent = "✅ Engine Online");
+    setupConn();
 };
     </script>
 </body>
