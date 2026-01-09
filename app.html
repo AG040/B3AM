@@ -63,41 +63,36 @@
     </div>
 
     <script>
-/* ================== INIT ================== */
-const myID = Math.floor(100000 + Math.random() * 900000);
+const myID = Math.floor(100000 + Math.random() * 900000); 
 document.getElementById('my-id').textContent = myID;
 
 const ui = {
     input: document.getElementById('remote-id-input'),
     btnConnect: document.getElementById('btn-connect'),
-    btnSave: document.getElementById('btn-save'),
     dropZone: document.getElementById('drop-zone'),
     fileInput: document.getElementById('file-input'),
     status: document.getElementById('status'),
-    progBar: document.getElementById('prog-bar'),
-    speed: document.getElementById('speed-display'),
     transferArea: document.getElementById('transfer-ui'),
     connectArea: document.getElementById('connect-ui'),
     modal: document.getElementById('request-modal'),
     reqId: document.getElementById('req-id')
 };
 
-// Multi-File Support
-ui.fileInput.multiple = true;
-let fileQueue = [];
-let activeFile = null;
-let sending = false;
-
-// Array für dynamische Empfänger-Balken
-const rxBars = [];
-
-/* ================== PEER ================== */
 let peer, conn, reqConn;
+let fileQueue = [];  // Sender-Dateien
+let rxQueue = [];    // Empfänger-Dateien
+let completedFiles = 0; // Empfangene Dateien
+
+// --- PeerJS Setup ---
 peer = new Peer(`b3am-${myID}`, { debug: 1 });
-
 peer.on('open', () => ui.status.textContent = "✅ Engine Online");
-
-peer.on('connection', c => {
+peer.on('error', (err) => {
+    ui.btnConnect.disabled = false;
+    ui.status.innerHTML = err.type === 'peer-unavailable'
+        ? `<span style="color:var(--error)">⚠️ ID NOT FOUND. CHECK CODE!</span>`
+        : "⚠️ Connection Error: " + err.type;
+});
+peer.on('connection', (c) => {
     c.on('open', () => {
         reqConn = c;
         ui.reqId.textContent = c.peer.replace('b3am-', '');
@@ -105,192 +100,194 @@ peer.on('connection', c => {
     });
 });
 
-peer.on('error', err => ui.status.textContent = "⚠️ " + err.type);
-
-/* ================== CONNECT ================== */
-ui.btnConnect.onclick = () => {
+// --- Verbindung ---
+ui.btnConnect.addEventListener('click', () => {
     const target = ui.input.value;
-    if (target.length !== 6) return alert("6 Digits required");
-    ui.btnConnect.disabled = true;
+    if(target.length !== 6) return alert("6 Digits required");
+    ui.btnConnect.disabled = true; 
     ui.status.textContent = "Searching for ID " + target + "...";
     conn = peer.connect(`b3am-${target}`);
     setupConn();
-};
+});
 
-function answer(yes) {
+function answer(yes){
     ui.modal.style.display = 'none';
-    if (!yes) return reqConn.close();
-    conn = reqConn;
-    conn.send({ type: 'handshake-ack' });
-    ui.connectArea.style.display = 'none';
-    ui.transferArea.style.display = 'block';
-    setupConn();
+    if(yes){
+        conn = reqConn;
+        conn.send({type:'handshake-ack'});
+        ui.connectArea.style.display='none';
+        ui.transferArea.style.display='block';
+        setupConn();
+    } else reqConn.close();
 }
 
-function setupConn() {
-    if (!conn) return;
-    conn.on('data', handleData);
+function setupConn(){
+    conn.on('data', data => handleData(data));
     conn.on('close', () => location.reload());
 }
 
-/* ================== MULTI-FILE QUEUE ================== */
+// --- Datei auswählen ---
 ui.dropZone.onclick = () => ui.fileInput.click();
-ui.fileInput.onchange = e => enqueueFiles([...e.target.files]);
-ui.dropZone.ondrop = e => { e.preventDefault(); enqueueFiles([...e.dataTransfer.files]); };
-ui.dropZone.ondragover = e => e.preventDefault();
-
-function enqueueFiles(files) {
-    if (!files.length) return;
-    fileQueue.push(...files);
-    if (!sending) sendNextFile();
-}
-
-/* ================== SEND ================== */
-const MAX_BUFFER = 128 * 1024 * 1024;
-let CHUNK_SIZE = 1024 * 1024;
-
-let sendOffset = 0;
-let fileHash = null;
-
-async function sendNextFile() {
-    if (!fileQueue.length || !conn?.dataChannel) { sending = false; ui.status.textContent = "✅ Queue Finished"; return; }
-
-    sending = true;
-    activeFile = fileQueue.shift();
-    sendOffset = 0;
-    ui.status.textContent = "⬆ Sending: " + activeFile.name;
-
-    const buf = await activeFile.arrayBuffer();
-    fileHash = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', buf)));
-
-    conn.send({
-        type: 'header',
-        name: activeFile.name,
-        size: activeFile.size,
-        hash: fileHash
-    });
-
-    streamFile();
-}
-
-async function streamFile() {
-    const reader = activeFile.slice(sendOffset).stream().getReader();
-    const start = Date.now();
-    let sent = sendOffset;
-    let lastUI = 0;
-
-    while (true) {
-        while (conn.dataChannel.bufferedAmount > MAX_BUFFER) await new Promise(r => setTimeout(r, 10));
-
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        for (let i = 0; i < value.byteLength; i += CHUNK_SIZE) {
-            const chunk = value.slice(i, i + CHUNK_SIZE);
-            conn.send({ type: 'chunk', data: chunk });
-            sent += chunk.byteLength;
-            sendOffset = sent;
-        }
-
-        const now = Date.now();
-        if (now - lastUI > 250) {
-            ui.progBar.style.width = ((sent / activeFile.size) * 100).toFixed(1) + "%";
-            ui.speed.textContent = `${((sent / 1024 / 1024) / ((now - start) / 1000)).toFixed(1)} MB/s`;
-            lastUI = now;
-        }
+ui.fileInput.onchange = e => {
+    for(const file of e.target.files){
+        fileQueue.push(file);
+        createProgressBar(file.name);
     }
+    if(fileQueue.length>0) startQueue();
+};
 
-    conn.send({ type: 'end' });
-}
-
-/* ================== RECEIVE ================== */
-let rxQueue = [];
-function createRxBar(name) {
+// --- Progress-Bars + Download-Buttons ---
+function createProgressBar(fileName){
     const container = document.createElement('div');
-    container.style.marginTop = '15px';
+    container.className='progress-container';
+    container.style.marginTop='15px';
+
+    const bar = document.createElement('div');
+    bar.className='progress-bar';
+    bar.style.width='0%';
+
     const label = document.createElement('div');
-    label.textContent = name;
-    label.style.color = 'var(--success)';
-    label.style.fontFamily = 'monospace';
-    label.style.fontSize = '0.9rem';
-    const barOuter = document.createElement('div');
-    barOuter.style.background = '#111';
-    barOuter.style.borderRadius = '6px';
-    barOuter.style.height = '8px';
-    barOuter.style.marginTop = '4px';
-    barOuter.style.overflow = 'hidden';
-    const barInner = document.createElement('div');
-    barInner.style.height = '100%';
-    barInner.style.width = '0%';
-    barInner.style.background = 'var(--success)';
-    barOuter.appendChild(barInner);
+    label.className='info-text';
+    label.textContent = fileName + ' - 0.0 MB/s';
+
+    const btn = document.createElement('button');
+    btn.className='main-btn save-btn';
+    btn.style.display='none';
+    btn.textContent='DOWNLOAD READY - CLICK TO SAVE';
+
+    container.appendChild(bar);
     container.appendChild(label);
-    container.appendChild(barOuter);
+    container.appendChild(btn);
     ui.transferArea.appendChild(container);
-    return { container, bar: barInner };
+
+    rxQueue.push({bar,label,btn,name:fileName,chunks:[],bytes:0,total:0,downloadUrl:null});
+
+    btn.onclick = () => {
+        const rxFile = rxQueue.find(f => f.btn===btn);
+        if(rxFile && rxFile.downloadUrl){
+            const a = document.createElement('a');
+            a.href=rxFile.downloadUrl;
+            a.download=rxFile.name;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            ui.status.textContent=`✅ ${rxFile.name} Saved!`;
+            setTimeout(()=>{btn.style.display='none';},2000);
+        }
+    };
 }
 
-let rxActive = null;
+// --- Sender-Queue ---
+let sending=false;
+async function startQueue(){
+    if(sending||!conn) return;
+    sending=true;
 
-function handleData(data) {
-    if (data.type === 'handshake-ack') {
-        ui.connectArea.style.display = 'none';
-        ui.transferArea.style.display = 'block';
-        ui.status.textContent = "⚡ Connected";
-    } else if (data.type === 'header') {
-        const barObj = createRxBar(data.name);
-        rxActive = {
-            name: data.name,
-            size: data.size,
-            hash: data.hash,
-            chunks: [],
-            bytes: 0,
-            start: Date.now(),
-            barObj
-        };
-        rxQueue.push(rxActive);
-    } else if (data.type === 'chunk') {
-        if (!rxActive) return;
-        rxActive.chunks.push(data.data);
-        rxActive.bytes += data.data.byteLength;
-        rxActive.barObj.bar.style.width = ((rxActive.bytes / rxActive.size) * 100).toFixed(1) + "%";
-    } else if (data.type === 'end') {
-        finalizeRx(rxActive);
+    while(fileQueue.length>0){
+        const file=fileQueue.shift();
+        await sendFileParallel(file);
+    }
+
+    sending=false;
+}
+
+// --- Parallele Datei-Sendung ---
+async function sendFileParallel(file){
+    conn.send({type:'header',name:file.name,size:file.size});
+    const reader=file.stream().getReader();
+    const start=Date.now();
+    let sent=0;
+    const chunkSize = 1024*1024; // 1 MB
+
+    const MAX_PARALLEL = 4; // max 4 Chunks gleichzeitig
+    let activeChunks = 0;
+
+    async function sendChunk(value){
+        while(conn.dataChannel.bufferedAmount>1024*1024*128) await new Promise(r=>setTimeout(r,1));
+        conn.send({type:'chunk',data:value,name:file.name});
+        sent += value.byteLength;
+        updateProgress(file.name,sent,file.size,Date.now()-start);
+        activeChunks--;
+    }
+
+    while(true){
+        const {done,value} = await reader.read();
+        if(done) break;
+        activeChunks++;
+        sendChunk(value);
+        while(activeChunks>=MAX_PARALLEL) await new Promise(r=>setTimeout(r,1));
+    }
+
+    // warten bis alle Chunks gesendet
+    while(activeChunks>0) await new Promise(r=>setTimeout(r,1));
+    conn.send({type:'end',name:file.name});
+    ui.status.textContent=`✅ ${file.name} Upload Finished`;
+}
+
+// --- Fortschritt aktualisieren ---
+function updateProgress(fileName,sent,total,ms){
+    const rxFile=rxQueue.find(f=>f.name===fileName);
+    if(!rxFile) return;
+    const speed=(sent/1024/1024)/(ms/1000);
+    rxFile.bar.style.width=((sent/total)*100).toFixed(1)+'%';
+    rxFile.label.textContent=`${rxFile.name} - ${speed.toFixed(1)} MB/s`;
+}
+
+// --- Empfangene Daten ---
+function handleData(data){
+    if(data.type==='handshake-ack'){
+        ui.connectArea.style.display='none';
+        ui.transferArea.style.display='block';
+        ui.status.textContent="⚡ Connected";
+    } else if(data.type==='header'){
+        const rxFile=rxQueue.find(f=>f.name===data.name);
+        if(rxFile){
+            rxFile.chunks=[];
+            rxFile.bytes=0;
+            rxFile.total=data.size;
+            rxFile.bar.style.width='0%';
+            rxFile.btn.style.display='none';
+        }
+    } else if(data.type==='chunk'){
+        const rxFile=rxQueue.find(f=>f.name===data.name);
+        if(rxFile){
+            rxFile.chunks.push(data.data);
+            rxFile.bytes+=data.data.byteLength;
+            const ms=Date.now()-(rxFile.startTime||(rxFile.startTime=Date.now()));
+            const speed=(rxFile.bytes/1024/1024)/(ms/1000);
+            rxFile.bar.style.width=((rxFile.bytes/rxFile.total)*100).toFixed(1)+'%';
+            rxFile.label.textContent=`${rxFile.name} - ${speed.toFixed(1)} MB/s`;
+        }
+    } else if(data.type==='end'){
+        const rxFile=rxQueue.find(f=>f.name===data.name);
+        if(rxFile){
+            const blob=new Blob(rxFile.chunks);
+            rxFile.downloadUrl=URL.createObjectURL(blob);
+            completedFiles++;
+            if(completedFiles===rxQueue.length){
+                for(const f of rxQueue) f.btn.style.display='block';
+            }
+            ui.status.textContent=`✅ ${rxFile.name} Ready for Download`;
+        }
     }
 }
 
-async function finalizeRx(rx) {
-    const blob = new Blob(rx.chunks);
-    const buf = await blob.arrayBuffer();
-    const hash = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', buf)));
-    if (hash.join() !== rx.hash.join()) {
-        ui.status.textContent = `❌ Hash mismatch: ${rx.name}`;
-        conn.send({ type: 'resume', offset: rx.bytes });
-        return;
-    }
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = rx.name;
-    a.textContent = "DOWNLOAD " + rx.name;
-    a.style.display = "block";
-    a.style.marginTop = "5px";
-    rx.barObj.container.appendChild(a);
-    ui.status.textContent = `✅ Received: ${rx.name}`;
-}
-
-/* ================== NEW CODE BUTTON ================== */
-const newCodeBtn = document.createElement('button');
-newCodeBtn.textContent = "NEW CODE";
-newCodeBtn.className = "main-btn";
-newCodeBtn.style.marginTop = "15px";
+// --- New Code Button ---
+const newCodeBtn=document.createElement('button');
+newCodeBtn.className='main-btn save-btn';
+newCodeBtn.textContent='NEW CODE';
+newCodeBtn.style.marginTop='20px';
 ui.transferArea.appendChild(newCodeBtn);
 
-newCodeBtn.onclick = () => {
-    myID = Math.floor(100000 + Math.random() * 900000);
-    document.getElementById('my-id').textContent = myID;
-    if (peer) peer.destroy();
-    peer = new Peer(`b3am-${myID}`, { debug: 1 });
-    peer.on('open', () => ui.status.textContent = "✅ Engine Online");
+newCodeBtn.onclick=()=>{
+    if(peer) peer.destroy();
+    const newID=Math.floor(100000+Math.random()*900000);
+    document.getElementById('my-id').textContent=newID;
+    peer=new Peer(`b3am-${newID}`,{debug:1});
+    ui.status.textContent="✅ Engine Online (New Code)";
+    peer.on('connection',c=>{
+        c.on('open',()=>{reqConn=c; ui.reqId.textContent=c.peer.replace('b3am-',''); ui.modal.style.display='flex';});
+    });
     setupConn();
 };
     </script>
