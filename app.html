@@ -114,13 +114,15 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // DISCONNECT BUTTON FIX
-    const disBtn = document.getElementById('btn-disconnect');
-    if (disBtn) {
-        disBtn.onclick = () => {
-            if (window.activeConn) window.activeConn.close();
-            resetUI();
-        };
-    }
+const disBtn = document.getElementById('btn-disconnect');
+if (disBtn) {
+    disBtn.onclick = () => {
+        if (window.activeConn) {
+            window.activeConn.close(); // Signal an die andere Seite
+        }
+        location.reload(); // Bringt dich sofort zurück zum 6-Zahlen-Code
+    };
+}
 
     // DATEI-SENDEN FIX (Anbindung an Infinity Engine v5.0)
     const fileInput = document.getElementById('file-input');
