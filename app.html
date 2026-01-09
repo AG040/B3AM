@@ -3,52 +3,57 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>B3AM v1.9.0 • BETA</title>
+    <title>B3AM ULTRA • MRLN LABS</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.2/peerjs.min.js"></script>
     <style>
-        /* --- DESIGN LOCK: MRLN LABS ORIGINAL --- */
+        /* --- STRENGES DESIGN-LOCK: KEINE ÄNDERUNGEN --- */
         :root { --bg: #050507; --primary: #00f3ff; --success: #00ff9d; --error: #ff2a6d; }
         body { margin: 0; background: var(--bg); color: white; font-family: 'Inter', sans-serif;
             background-image: linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
             background-size: 50px 50px; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
-        .card { background: rgba(255,255,255,0.03); backdrop-filter: blur(15px); width: 90%; max-width: 440px; padding: 40px; border-radius: 24px; border: 1px solid rgba(255,255,255,0.08); text-align: center; box-shadow: 0 0 50px rgba(0,243,255,0.1); }
-        .id-digit { font-size: 3.5rem; font-weight: 700; color: var(--primary); letter-spacing: 5px; margin: 20px 0; text-shadow: 0 0 20px rgba(0,243,255,0.5); }
-        .main-btn { background: var(--primary); color: #000; font-weight: 800; border: none; padding: 16px; border-radius: 30px; cursor: pointer; width: 100%; text-transform: uppercase; margin-top: 15px; transition: 0.3s; }
-        .main-btn:hover { transform: scale(1.02); box-shadow: 0 0 20px var(--primary); }
-        .progress-container { background: #111; border-radius: 10px; margin-top: 20px; overflow: hidden; border: 1px solid rgba(255,255,255,0.1); height: 8px; }
+        .header-nav { position: fixed; top: 0; left: 0; width: 100%; height: 70px; display: flex; align-items: center; padding: 0 30px; background: rgba(5,5,7,0.85); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(255,255,255,0.08); z-index: 1000; }
+        .logo-text { color: var(--primary); font-weight: 900; letter-spacing: 3px; font-size: 1.3rem; text-decoration: none; text-shadow: 0 0 15px rgba(0, 243, 255, 0.6); }
+        .card { background: rgba(255,255,255,0.03); backdrop-filter: blur(15px); width: 90%; max-width: 440px; padding: 40px; border-radius: 24px; border: 1px solid rgba(255,255,255,0.08); text-align: center; margin-top: 80px; }
+        .id-digit { font-size: 3.5rem; font-weight: 700; color: var(--primary); letter-spacing: 5px; margin: 20px 0; }
+        .main-btn { background: var(--primary); color: #000; font-weight: 800; border: none; padding: 16px; border-radius: 30px; cursor: pointer; width: 100%; text-transform: uppercase; margin-top: 15px; }
+        .progress-container { background: #111; border-radius: 10px; margin-top: 20px; overflow: hidden; height: 8px; border: 1px solid rgba(255,255,255,0.1); }
         .progress-bar { height: 100%; background: var(--success); width: 0%; transition: width 0.1s linear; }
         .info-text { font-family: monospace; color: var(--success); margin-top: 10px; font-size: 0.8rem; }
         input { background: rgba(255,255,255,0.05); color: white; border: 1px solid rgba(255,255,255,0.1); padding: 15px; width: 85%; text-align: center; border-radius: 12px; margin-bottom: 10px; font-size: 1.5rem; outline: none; }
-        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); display: none; justify-content: center; align-items: center; z-index: 1000; backdrop-filter: blur(5px); }
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); display: none; justify-content: center; align-items: center; z-index: 2000; }
     </style>
 </head>
 <body>
 
+    <header class="header-nav">
+        <a href="index.html" class="logo-text">MRLN LABS</a>
+    </header>
+
     <div class="modal-overlay" id="request-modal">
         <div style="background: #0f0f13; padding: 40px; border-radius: 24px; text-align: center; border: 1px solid var(--primary);">
             <h2 style="margin-top:0">INCOMING</h2>
-            <p style="color:#888;">ID: <span id="req-id" style="color:var(--primary)">...</span></p>
-            <button onclick="answer(true)" class="main-btn" style="background:var(--success)">ACCEPT</button>
+            <p>ID: <span id="req-id" style="color:var(--primary)">...</span></p>
+            <button onclick="answer(true)" class="main-btn" style="background:var(--success)">ACCEPT & CHOOSE FOLDER</button>
             <button onclick="answer(false)" class="main-btn" style="background:transparent; color:var(--error); border:1px solid var(--error); margin-top:10px;">BLOCK</button>
         </div>
     </div>
 
     <div class="card">
-        <h1 style="letter-spacing: 2px;">B3AM ENGINE</h1>
-        <div style="color:var(--primary); font-size:0.7rem; letter-spacing:3px;">v1.9.0 • TURBO STREAM</div>
+        <h1>B3AM ULTRA</h1>
+        <div style="color:var(--primary); font-size:0.7rem; letter-spacing:3px;">v2.0.0 • UNLIMITED ENGINE</div>
         <div class="id-digit" id="my-id">...</div>
         
         <div id="connect-ui">
             <input type="number" id="remote-id-input" placeholder="000000">
-            <button id="btn-connect" class="main-btn">CONNECT REALITY</button>
+            <button id="btn-connect" class="main-btn">LINK DEVICES</button>
         </div>
 
         <div id="transfer-ui" style="display:none;">
-            <div id="drop-zone" style="border: 2px dashed #333; padding: 40px; border-radius: 20px; cursor: pointer; color:#555; font-weight:bold;">DRAG & DROP FILES</div>
+            <div id="drop-zone" style="border: 2px dashed #333; padding: 40px; border-radius: 20px; cursor: pointer; color:#555;">DRAG & DROP (UNLIMITED GB)</div>
             <input type="file" id="file-input" hidden multiple>
-            <div id="status" style="margin-top:20px; font-size:0.8rem; color:var(--success);">⚡ System Linked</div>
+            <div id="status" style="margin-top:20px; font-size:0.8rem; color:var(--success);">⚡ Ultra-Stream Active</div>
             <div id="file-list-ui"></div>
-            <button class="main-btn" style="background:transparent; border:1px solid var(--error); color:var(--error); font-size:0.7rem;" onclick="location.reload()">DISCONNECT</button>
+            <button class="main-btn" style="background:transparent; border:1px solid var(--error); color:var(--error); font-size:0.7rem; margin-top:20px;" onclick="location.reload()">TERMINATE</button>
         </div>
     </div>
 
@@ -59,13 +64,13 @@
         
         let peer, conn, reqConn, sending = false;
         let fileQueue = []; 
-        let rxFiles = {}; 
+        let activeStreams = {}; // Für Filesystem API
 
         peer = new Peer(`b3am-${myID}`, { debug: 1 });
-        peer.on('open', () => ui.status.textContent = "✅ Engine Online");
+        peer.on('open', () => ui.status.textContent = "✅ Ultra Engine Ready");
         peer.on('error', (err) => {
             ui.btnConnect.disabled = false;
-            ui.status.innerHTML = err.type === 'peer-unavailable' ? `<span style="color:var(--error)">⚠️ ID NOT FOUND</span>` : "⚠️ Error: " + err.type;
+            ui.status.innerHTML = `<span style="color:var(--error)">⚠️ ${err.type.toUpperCase()}</span>`;
         });
 
         peer.on('connection', (c) => {
@@ -93,92 +98,68 @@
 
         ui.dropZone.onclick = () => ui.fileInput.click();
         ui.fileInput.onchange = e => {
-            for(const file of e.target.files){ fileQueue.push(file); createRxUI(file.name); }
-            if(fileQueue.length > 0) startQueue();
+            for(const file of e.target.files){ fileQueue.push(file); createStreamUI(file.name); }
+            if(!sending) startQueue();
         };
 
-        function createRxUI(fileName){
-            const container = document.createElement('div');
-            container.innerHTML = `
-                <div class="info-text" id="label-${fileName}">${fileName} - 0%</div>
-                <div class="progress-container"><div class="progress-bar" id="bar-${fileName}"></div></div>
-                <button id="btn-${fileName}" class="main-btn" style="display:none; background:var(--success)">DOWNLOAD</button>
-            `;
-            ui.fileList.appendChild(container);
-            
-            rxFiles[fileName] = {
-                chunks:[], bytes:0, total:0, 
-                bar: document.getElementById(`bar-${fileName}`), 
-                label: document.getElementById(`label-${fileName}`), 
-                btn: document.getElementById(`btn-${fileName}`),
-                startTime: 0
-            };
-            
-            rxFiles[fileName].btn.onclick = () => {
-                const blob = new Blob(rxFiles[fileName].chunks);
-                const a = document.createElement('a');
-                a.href = URL.createObjectURL(blob);
-                a.download = fileName;
-                a.click();
-            };
+        function createStreamUI(name){
+            const div = document.createElement('div');
+            div.innerHTML = `<div class="info-text" id="lbl-${name}">${name} - 0%</div>
+                             <div class="progress-container"><div class="progress-bar" id="bar-${name}"></div></div>`;
+            ui.fileList.appendChild(div);
+            activeStreams[name] = { bar: document.getElementById(`bar-${name}`), lbl: document.getElementById(`lbl-${lbl}`) };
         }
 
         async function startQueue(){
-            if(sending || !conn) return;
             sending = true;
-            while(fileQueue.length > 0){ await sendFileTurbo(fileQueue.shift()); }
+            while(fileQueue.length > 0){
+                const file = fileQueue.shift();
+                await sendFileUltra(file);
+            }
             sending = false;
         }
 
-        // --- TURBO SENDER (4 SPUREN PARALLEL) ---
-        async function sendFileTurbo(file){
+        async function sendFileUltra(file){
             conn.send({type:'header', name:file.name, size:file.size});
             const reader = file.stream().getReader();
-            let sent = 0; const start = Date.now();
-            const chunkSize = 1024 * 1024; // 1MB Pakete
-            
+            let sent = 0;
             while(true){
                 const {done, value} = await reader.read();
                 if(done) break;
-                
-                // Buffer-Check (Verhindert Überlastung der Leitung)
-                if(conn.dataChannel.bufferedAmount > 1024*1024*16) {
-                    await new Promise(r => setTimeout(r, 20));
-                }
-                
                 conn.send({type:'chunk', data:value, name:file.name});
                 sent += value.byteLength;
-                
-                const percent = ((sent/file.size)*100).toFixed(1);
-                rxFiles[file.name].bar.style.width = percent + '%';
-                rxFiles[file.name].label.textContent = `${file.name} - ${percent}%`;
+                const p = ((sent/file.size)*100).toFixed(1);
+                document.getElementById(`bar-${file.name}`).style.width = p+'%';
+                if(conn.dataChannel.bufferedAmount > 1024*1024*32) await new Promise(r=>setTimeout(r,10));
             }
             conn.send({type:'end', name:file.name});
         }
 
-        function handleData(data){
+        async function handleData(data){
             if(data.type==='handshake-ack'){ ui.connectArea.style.display='none'; ui.transferArea.style.display='block'; }
             else if(data.type==='header'){
-                if(!rxFiles[data.name]) createRxUI(data.name);
-                const f = rxFiles[data.name];
-                f.chunks=[]; f.bytes=0; f.total=data.size; f.startTime=Date.now();
+                // ULTRA-FEATURE: Browser fragt nach Speicherort
+                try {
+                    const handle = await window.showSaveFilePicker({ suggestedName: data.name });
+                    const writable = await handle.createWritable();
+                    activeStreams[data.name] = { writable, bytes: 0, total: data.size };
+                    createStreamUI(data.name);
+                } catch(e) { ui.status.textContent = "❌ Permission Denied"; }
             }
             else if(data.type==='chunk'){
-                const f = rxFiles[data.name];
-                if(f){
-                    f.chunks.push(data.data); f.bytes += data.data.byteLength;
-                    const percent = ((f.bytes/f.total)*100).toFixed(1);
-                    f.bar.style.width = percent + '%';
-                    f.label.textContent = `${data.name} - ${percent}%`;
+                const s = activeStreams[data.name];
+                if(s && s.writable){
+                    await s.writable.write(data.data);
+                    s.bytes += data.data.byteLength;
+                    const p = ((s.bytes/s.total)*100).toFixed(1);
+                    document.getElementById(`bar-${data.name}`).style.width = p+'%';
                 }
             }
             else if(data.type==='end'){
-                const f = rxFiles[data.name];
-                if(f){ 
-                    f.bar.style.width = '100%';
-                    f.btn.style.display='block'; 
-                    ui.status.textContent=`✅ ${data.name} Received`;
-                    if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+                const s = activeStreams[data.name];
+                if(s && s.writable){
+                    await s.writable.close();
+                    ui.status.textContent = `✅ ${data.name} Saved to Disk`;
                 }
             }
         }
