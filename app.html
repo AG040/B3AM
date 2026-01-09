@@ -1,14 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <script src="engine.js" defer></script>
-    
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>B3AM MASTER • MRLN LABS</title>
-    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.2/peerjs.min.js"></script>
     <style>
-        /* --- DEIN ORIGINAL DESIGN BLEIBT ZU 100% ERHALTEN --- */
+        /* --- DESIGN LOCK: MRLN LABS ORIGINAL --- */
         :root { --bg: #050507; --primary: #00f3ff; --success: #00ff9d; --error: #ff2a6d; --text-muted: #8892b0; }
         body { margin: 0; background: var(--bg); color: white; font-family: 'Inter', sans-serif;
             background-image: linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
@@ -37,16 +35,15 @@
         <div style="background: #0f0f13; padding: 40px; border-radius: 24px; text-align: center; border: 1px solid var(--primary); max-width: 350px;">
             <h2 style="margin-top:0; color:white;">INCOMING B3AM</h2>
             <p style="color:var(--text-muted);">SENDER ID: <span id="req-id" style="color:var(--primary); font-weight:bold;">...</span></p>
-            <p style="font-size: 0.8rem; color: #666;">Choose a location to save the incoming file directly.</p>
-            <button id="accept-btn" class="main-btn" style="background:var(--success)">ACCEPT & SAVE</button>
-            <button onclick="document.getElementById('request-modal').style.display='none'" class="main-btn" style="background:transparent; color:var(--error); border:1px solid var(--error); margin-top:10px;">REJECT</button>
+            <p style="font-size: 0.8rem; color: #666;">Choose a location to save the incoming file directly to your disk.</p>
+            <button onclick="answer(true)" class="main-btn" style="background:var(--success)">ACCEPT & SAVE</button>
+            <button onclick="answer(false)" class="main-btn" style="background:transparent; color:var(--error); border:1px solid var(--error); margin-top:10px;">REJECT</button>
         </div>
     </div>
 
     <div class="card">
         <h1>B3AM ENGINE</h1>
-        <div style="color:var(--primary); font-size:0.7rem; letter-spacing:3px; font-weight:bold;">v5.0.0 • INFINITY CORE</div>
-        
+        <div style="color:var(--primary); font-size:0.7rem; letter-spacing:3px; font-weight:bold;">v2.1.0 • ULTRA PERFORMANCE</div>
         <div class="id-digit" id="my-id">...</div>
         
         <div id="connect-ui">
@@ -59,99 +56,176 @@
             <input type="file" id="file-input" hidden multiple>
             <div id="status" style="margin-top:20px; font-size:0.8rem; color:var(--primary);">⚡ LINK ESTABLISHED</div>
             <div id="file-list-ui"></div>
-            
             <button class="main-btn" style="background:transparent; border:1px solid var(--error); color:var(--error); font-size:0.7rem; margin-top:30px;" onclick="location.reload()">TERMINATE CONNECTION</button>
         </div>
     </div>
 
-<script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-
-<script>
-  // Innerhalb deines <script> Tags in app.html
-const myID = Math.floor(100000 + Math.random() * 900000).toString();
-document.getElementById('my-id').textContent = myID;
-
-function resetUI() {
-    document.getElementById('connect-ui').style.display = 'block';
-    document.getElementById('transfer-ui').style.display = 'none';
-    document.getElementById('status').textContent = "⚡ ENGINE READY";
-    window.activeConn = null;
-}
-
-document.addEventListener('DOMContentLoaded', () => {
-    const peer = new Peer(myID);
-    window.peer = peer;
-// --- EMPFÄNGER-SEITE (Gerät B) ---
-peer.on('connection', (conn) => {
-    window.activeConn = conn;
-    
-    // 1. Benachrichtigung (Modal) anzeigen
-    const modal = document.getElementById('request-modal');
-    document.getElementById('req-id').textContent = conn.peer;
-    modal.style.display = 'flex';
-
-    // 2. REAKTION AUF AKZEPTIEREN
-    document.getElementById('accept-btn').onclick = () => {
-        modal.style.display = 'none';
-        document.getElementById('connect-ui').style.display = 'none';
-        document.getElementById('transfer-ui').style.display = 'block';
+    <script>
+        const myID = Math.floor(100000 + Math.random() * 900000); 
+        document.getElementById('my-id').textContent = myID;
+        const ui = { input: document.getElementById('remote-id-input'), btnConnect: document.getElementById('btn-connect'), dropZone: document.getElementById('drop-zone'), fileInput: document.getElementById('file-input'), status: document.getElementById('status'), transferArea: document.getElementById('transfer-ui'), connectArea: document.getElementById('connect-ui'), modal: document.getElementById('request-modal'), reqId: document.getElementById('req-id'), fileList: document.getElementById('file-list-ui') };
         
-        // DAS IST DAS WICHTIGSTE: B sagt A Bescheid!
-        conn.send({ type: 'handshake-ack' });
-    };
-    
-    conn.on('close', () => location.reload());
-});
+        let peer, conn, reqConn, sending = false;
+        let fileQueue = []; 
+        let activeTransfers = {}; 
 
-// --- SENDER-SEITE (Gerät A) ---
-document.getElementById('btn-connect').onclick = () => {
-    const targetID = document.getElementById('remote-id-input').value;
-    const conn = peer.connect(targetID);
-    window.activeConn = conn;
+        peer = new Peer(`b3am-${myID}`, { debug: 1 });
+        peer.on('open', () => ui.status.textContent = "✅ Engine Online");
+        peer.on('error', (err) => {
+            ui.btnConnect.disabled = false;
+            ui.status.innerHTML = `<span style="color:var(--error)">⚠️ ENGINE ERROR: ${err.type.toUpperCase()}</span>`;
+        });
 
-    // A schaltet NICHT sofort um, sondern wartet!
-    document.getElementById('status').textContent = "⌛ Warte auf Bestätigung von " + targetID;
+        peer.on('connection', (c) => {
+            c.on('open', () => { reqConn = c; ui.reqId.textContent = c.peer.replace('b3am-',''); ui.modal.style.display='flex'; });
+        });
 
-    conn.on('data', (data) => {
-        // Erst wenn das Signal von B kommt, schaltet A um
-        if (data.type === 'handshake-ack') {
-            document.getElementById('connect-ui').style.display = 'none';
-            document.getElementById('transfer-ui').style.display = 'block';
-            document.getElementById('status').textContent = "🚀 VERBUNDEN";
+        ui.btnConnect.addEventListener('click', () => {
+            const target = ui.input.value;
+            if(target.length!==6) return alert("6 Digits required");
+            ui.btnConnect.disabled=true;
+            ui.status.textContent = "Searching for Peer...";
+            conn = peer.connect(`b3am-${target}`, { reliable: true });
+            setupConn();
+        });
+
+        function answer(yes){
+            ui.modal.style.display='none';
+            if(yes){ 
+                conn = reqConn; 
+                conn.send({type:'handshake-ack'}); 
+                ui.connectArea.style.display='none'; 
+                ui.transferArea.style.display='block'; 
+                ui.status.textContent = "⚡ Connected & Ready";
+                setupConn(); 
+            } 
+            else reqConn.close();
         }
-    });
 
-    conn.on('close', () => location.reload());
-};
-    // DISCONNECT BUTTON FIX
-const disBtn = document.getElementById('btn-disconnect');
-if (disBtn) {
-    disBtn.onclick = () => {
-        if (window.activeConn) {
-            window.activeConn.close(); // Signal an die andere Seite
+        function setupConn(){
+            conn.on('data', data => handleData(data));
+            conn.on('close', () => location.reload());
+            conn.on('open', () => {
+                ui.connectArea.style.display='none'; 
+                ui.transferArea.style.display='block';
+            });
         }
-        location.reload(); // Bringt dich sofort zurück zum 6-Zahlen-Code
-    };
-}
 
-    // DATEI-SENDEN FIX (Anbindung an Infinity Engine v5.0)
-    const fileInput = document.getElementById('file-input');
-    document.getElementById('drop-zone').onclick = () => fileInput.click();
-    fileInput.onchange = async (e) => {
-        const files = e.target.files;
-        if (files.length > 0 && window.activeConn) {
-            document.getElementById('status').textContent = "🚀 MRLN V5 STARTING...";
-            // Hier wird die Infinity Engine direkt angesprochen
-            if (window.B3AM_ENGINE) {
-                for (let file of files) {
-                    await window.B3AM_ENGINE.initiateUltraTransfer(file);
+        ui.dropZone.onclick = () => ui.fileInput.click();
+        ui.fileInput.onchange = e => {
+            for(const file of e.target.files){ 
+                fileQueue.push(file); 
+                addFileToUI(file.name, 'sending');
+            }
+            if(!sending) startQueue();
+        };
+
+        function addFileToUI(name, type){
+            const id = name.replace(/\s+/g, '-');
+            const box = document.createElement('div');
+            box.className = 'file-box';
+            box.innerHTML = `
+                <div class="info-text" id="lbl-${id}">${name} - 0%</div>
+                <div class="progress-container"><div class="progress-bar" id="bar-${id}"></div></div>
+                <button id="btn-${id}" class="main-btn" style="display:none; background:var(--success); font-size:0.7rem;">OPEN FILE</button>
+            `;
+            ui.fileList.appendChild(box);
+            activeTransfers[name] = { 
+                bar: document.getElementById(`bar-${id}`), 
+                lbl: document.getElementById(`lbl-${id}`),
+                btn: document.getElementById(`btn-${id}`)
+            };
+        }
+
+        async function startQueue(){
+            sending = true;
+            while(fileQueue.length > 0){
+                const file = fileQueue.shift();
+                await sendFileUltra(file);
+            }
+            sending = false;
+        }
+
+        async function sendFileUltra(file){
+            conn.send({type:'header', name:file.name, size:file.size});
+            const reader = file.stream().getReader();
+            let sent = 0;
+            const id = file.name.replace(/\s+/g, '-');
+            const bar = document.getElementById(`bar-${id}`);
+            const lbl = document.getElementById(`lbl-${id}`);
+
+            while(true){
+                const {done, value} = await reader.read();
+                if(done) break;
+                
+                conn.send({type:'chunk', data:value, name:file.name});
+                sent += value.byteLength;
+                
+                const p = ((sent/file.size)*100).toFixed(1);
+                if(bar) bar.style.width = p + '%';
+                if(lbl) lbl.textContent = `${file.name} - ${p}%`;
+
+                if(conn.dataChannel.bufferedAmount > 1024*1024*16) await new Promise(r=>setTimeout(r,15));
+            }
+            conn.send({type:'end', name:file.name});
+        }
+
+        async function handleData(data){
+            if(data.type==='handshake-ack'){ 
+                ui.connectArea.style.display='none'; 
+                ui.transferArea.style.display='block'; 
+            }
+            else if(data.type==='header'){
+                addFileToUI(data.name, 'receiving');
+                const t = activeTransfers[data.name];
+                t.total = data.size;
+                t.bytes = 0;
+                
+                // FileSystem Access
+                try {
+                    if(window.showSaveFilePicker) {
+                        const handle = await window.showSaveFilePicker({ suggestedName: data.name });
+                        t.writable = await handle.createWritable();
+                    } else {
+                        t.chunks = []; // Fallback für Handys
+                    }
+                } catch(e) { console.log("Stream error, falling back to blob"); t.chunks = []; }
+            }
+            else if(data.type==='chunk'){
+                const t = activeTransfers[data.name];
+                if(t){
+                    if(t.writable) {
+                        await t.writable.write(data.data);
+                    } else {
+                        t.chunks.push(data.data);
+                    }
+                    t.bytes += data.data.byteLength;
+                    const p = ((t.bytes/t.total)*100).toFixed(1);
+                    if(t.bar) t.bar.style.width = p + '%';
+                    if(t.lbl) t.lbl.textContent = `${data.name} - ${p}%`;
                 }
-            } else {
-                console.error("Infinity Engine v5.0 nicht geladen!");
+            }
+            else if(data.type==='end'){
+                const t = activeTransfers[data.name];
+                if(t){
+                    if(t.writable) {
+                        await t.writable.close();
+                        t.btn.style.display = 'block';
+                        t.btn.textContent = "SAVED TO DISK";
+                    } else {
+                        const blob = new Blob(t.chunks);
+                        const url = URL.createObjectURL(blob);
+                        t.btn.style.display = 'block';
+                        t.btn.onclick = () => {
+                            const a = document.createElement('a');
+                            a.href = url; a.download = data.name; a.click();
+                        };
+                    }
+                    ui.status.textContent = `✅ ${data.name} COMPLETE`;
+                    if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+                }
             }
         }
-    };
-});
-</script>
-
-<script src="engine.js"></script>
+    </script>
+</body>
+</html>
