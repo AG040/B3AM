@@ -570,7 +570,35 @@ const MRLN_BRIDGE = {
         console.log("🏆 MRLN: Mission Accomplished. 5GB delivered.");
     }
 };
+// 1. Die Engine auf Gerät B hört zu
+peer.on('connection', (conn) => {
+    // 2. Sobald jemand anklopft, holen wir das Modal aus deiner app.html
+    const modal = document.getElementById('request-modal');
+    const reqIdDisplay = document.getElementById('req-id');
 
+    if (modal) {
+        // ID des Senders anzeigen (wir schneiden das 'b3am-' weg)
+        if (reqIdDisplay) reqIdDisplay.textContent = conn.peer.replace('b3am-', '');
+        
+        // DAS FENSTER ZEIGEN
+        modal.style.display = 'flex';
+        console.log("🔔 MRLN: Eingehende Anfrage von " + conn.peer);
+    }
+
+    // 3. Wenn der Nutzer auf "ACCEPT" klickt
+    document.getElementById('accept-btn').onclick = () => {
+        modal.style.display = 'none';
+        
+        // Signal an Gerät A: "Ich bin bereit!"
+        conn.on('open', () => {
+            conn.send({ type: 'handshake-ack' });
+            
+            // Interface umschalten auf Transfer-Modus
+            document.getElementById('connect-ui').style.display = 'none';
+            document.getElementById('transfer-ui').style.display = 'block';
+        });
+    };
+});
 // GLOBALER ZUGRIFF: Damit dein Button in app.html die Engine findet
 window.B3AM_ENGINE = MRLN_BRIDGE;
 /**
