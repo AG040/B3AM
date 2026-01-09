@@ -67,72 +67,79 @@
 <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
 
 <script>
-    // 2. SOFORT-START: ID erzeugen bevor irgendwas anderes passiert
-    // Das entfernt die drei Punkte sofort nach dem Laden!
-    const myID = Math.floor(100000 + Math.random() * 900000).toString();
-    const idDisplay = document.getElementById('my-id');
-    if (idDisplay) idDisplay.textContent = myID;
+  // Innerhalb deines <script> Tags in app.html
+const myID = Math.floor(100000 + Math.random() * 900000).toString();
+document.getElementById('my-id').textContent = myID;
 
-    // 3. Warten bis die Seite und PeerJS bereit sind
-    window.onload = () => {
-        try {
-            const peer = new Peer(myID);
-            window.peer = peer;
+function resetUI() {
+    document.getElementById('connect-ui').style.display = 'block';
+    document.getElementById('transfer-ui').style.display = 'none';
+    document.getElementById('status').textContent = "⚡ ENGINE READY";
+    window.activeConn = null;
+}
 
-            peer.on('open', () => {
-                const status = document.getElementById('status');
-                if (status) status.textContent = "⚡ ENGINE READY";
-            });
+document.addEventListener('DOMContentLoaded', () => {
+    const peer = new Peer(myID);
+    window.peer = peer;
 
-            // 4. Empfänger-Lauscher (Das Modal für Gerät B)
-            peer.on('connection', (conn) => {
-                const modal = document.getElementById('request-modal');
-                const reqIdDisplay = document.getElementById('req-id');
-                if (modal) {
-                    if (reqIdDisplay) reqIdDisplay.textContent = conn.peer;
-                    modal.style.display = 'flex';
-                }
+    peer.on('connection', (conn) => {
+        window.activeConn = conn;
+        // Gerät B reagiert auf Schließen der Verbindung
+        conn.on('close', resetUI);
+        
+        // Modal anzeigen
+        const modal = document.getElementById('request-modal');
+        document.getElementById('req-id').textContent = conn.peer;
+        modal.style.display = 'flex';
 
-                document.getElementById('accept-btn').onclick = () => {
-                    modal.style.display = 'none';
-                    document.getElementById('connect-ui').style.display = 'none';
-                    document.getElementById('transfer-ui').style.display = 'block';
-                    window.activeConn = conn;
-                };
-            });
+        document.getElementById('accept-btn').onclick = () => {
+            modal.style.display = 'none';
+            document.getElementById('connect-ui').style.display = 'none';
+            document.getElementById('transfer-ui').style.display = 'block';
+        };
+    });
 
-            // 5. Verbindungs-Knopf (Gerät A)
-            document.getElementById('btn-connect').onclick = () => {
-                const targetID = document.getElementById('remote-id-input').value;
-                if (targetID.length !== 6) return alert("6 Zahlen eingeben!");
-                const conn = peer.connect(targetID);
-                window.activeConn = conn;
-                conn.on('open', () => {
-                    document.getElementById('connect-ui').style.display = 'none';
-                    document.getElementById('transfer-ui').style.display = 'block';
-                });
-            };
-        } catch (e) {
-            console.error("MRLN Engine Error:", e);
-        }
+    document.getElementById('btn-connect').onclick = () => {
+        const targetID = document.getElementById('remote-id-input').value;
+        const conn = peer.connect(targetID);
+        window.activeConn = conn;
+        
+        conn.on('open', () => {
+            document.getElementById('connect-ui').style.display = 'none';
+            document.getElementById('transfer-ui').style.display = 'block';
+        });
+        
+        // Gerät A reagiert auf Schließen der Verbindung
+        conn.on('close', resetUI);
     };
 
-    // 6. Datei-Versand Logik
-    document.addEventListener('DOMContentLoaded', () => {
-        const fileInput = document.getElementById('file-input');
-        const dropZone = document.getElementById('drop-zone');
-        if (dropZone && fileInput) {
-            dropZone.onclick = () => fileInput.click();
-            fileInput.onchange = async (e) => {
-                const files = e.target.files;
-                if (files.length > 0 && window.activeConn && window.B3AM_ENGINE) {
-                    for (let file of files) {
-                        await window.B3AM_ENGINE.initiateUltraTransfer(file);
-                    }
+    // DISCONNECT BUTTON FIX
+    const disBtn = document.getElementById('btn-disconnect');
+    if (disBtn) {
+        disBtn.onclick = () => {
+            if (window.activeConn) window.activeConn.close();
+            resetUI();
+        };
+    }
+
+    // DATEI-SENDEN FIX (Anbindung an Infinity Engine v5.0)
+    const fileInput = document.getElementById('file-input');
+    document.getElementById('drop-zone').onclick = () => fileInput.click();
+    fileInput.onchange = async (e) => {
+        const files = e.target.files;
+        if (files.length > 0 && window.activeConn) {
+            document.getElementById('status').textContent = "🚀 MRLN V5 STARTING...";
+            // Hier wird die Infinity Engine direkt angesprochen
+            if (window.B3AM_ENGINE) {
+                for (let file of files) {
+                    await window.B3AM_ENGINE.initiateUltraTransfer(file);
                 }
-            };
+            } else {
+                console.error("Infinity Engine v5.0 nicht geladen!");
+            }
         }
-    });
+    };
+});
 </script>
 
 <script src="engine.js"></script>
